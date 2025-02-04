@@ -3,28 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, sages } from "@shared/schema";
 import { z } from "zod";
-
-// Mock Gemini Flash 2.0 integration
-async function generateGeminiResponse(content: string, selectedSages: string[]) {
-  // Get the prompts for selected sages
-  const sagesToConsult = sages.filter(sage => selectedSages.includes(sage.id));
-  const combinedPrompt = sagesToConsult
-    .map(sage => `${sage.name} (${sage.title}): ${sage.prompt}`)
-    .join('\n');
-
-  // In a real implementation, this would make an API call to Gemini Flash 2.0
-  const mockResponses = {
-    "lao-tzu": "In stillness, wisdom flows like a gentle stream. Your question reveals both the seeker and the sought.",
-    "shiva": "In the dance of consciousness, transformation occurs. Let go of what binds you to see clearly.",
-    "jesus": "Love is the key that unlocks all doors. Seek first understanding, and all else will follow.",
-    "buddha": "Observe your thoughts without attachment. The answer lies in the space between your questions.",
-    "rumi": "Your heart knows the way. Run in that direction, and let love be your guide."
-  };
-
-  // Combine responses from selected sages
-  const responses = selectedSages.map(sageId => mockResponses[sageId as keyof typeof mockResponses]);
-  return responses.join("\n\n");
-}
+import { generateSageResponse } from "./lib/gemini";
 
 export function registerRoutes(app: Express): Server {
   app.post("/api/session", async (req, res) => {
@@ -61,11 +40,13 @@ export function registerRoutes(app: Express): Server {
       const messageData = insertMessageSchema.parse(req.body.message);
       const message = await storage.createMessage(user.id, messageData);
 
-      // Generate response using Gemini Flash 2.0
-      const response = await generateGeminiResponse(
-        messageData.content,
-        messageData.sages as string[]
+      // Get the full sage objects for the selected sages
+      const selectedSages = sages.filter(sage => 
+        (messageData.sages as string[]).includes(sage.id)
       );
+
+      // Generate response using Gemini Flash 2.0
+      const response = await generateSageResponse(messageData.content, selectedSages);
 
       // Update message with the generated response
       await storage.updateMessageResponse(message.id, response);
@@ -78,6 +59,7 @@ export function registerRoutes(app: Express): Server {
       if (error instanceof z.ZodError) {
         res.status(400).json(error);
       } else {
+        console.error("Error handling message:", error);
         res.status(500).json({ message: "Internal server error" });
       }
     }
