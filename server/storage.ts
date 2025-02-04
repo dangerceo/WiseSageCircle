@@ -1,4 +1,6 @@
-import { User, InsertUser, Message, InsertMessage } from "@shared/schema";
+import { User, InsertUser, Message, InsertMessage, users, messages } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(sessionId: string): Promise<User | undefined>;
@@ -8,64 +10,47 @@ export interface IStorage {
   createMessage(userId: number, message: InsertMessage): Promise<Message>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private messages: Map<number, Message>;
-  private currentUserId: number;
-  private currentMessageId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.messages = new Map();
-    this.currentUserId = 1;
-    this.currentMessageId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(sessionId: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.sessionId === sessionId
-    );
+    const [user] = await db.select().from(users).where(eq(users.sessionId, sessionId));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = {
-      id,
-      sessionId: insertUser.sessionId,
-      username: insertUser.username,
-      credits: 10,
-      createdAt: new Date()
-    };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async updateUserCredits(id: number, credits: number): Promise<void> {
-    const user = this.users.get(id);
-    if (user) {
-      this.users.set(id, { ...user, credits });
-    }
+    await db
+      .update(users)
+      .set({ credits })
+      .where(eq(users.id, id));
   }
 
   async getUserMessages(userId: number): Promise<Message[]> {
-    return Array.from(this.messages.values()).filter(
-      (message) => message.userId === userId
-    );
+    return db
+      .select()
+      .from(messages)
+      .where(eq(messages.userId, userId))
+      .orderBy(messages.createdAt);
   }
 
   async createMessage(userId: number, insertMessage: InsertMessage): Promise<Message> {
-    const id = this.currentMessageId++;
-    const message: Message = {
-      id,
-      userId,
-      content: insertMessage.content,
-      response: "",
-      sages: insertMessage.sages,
-      createdAt: new Date()
-    };
-    this.messages.set(id, message);
+    const [message] = await db
+      .insert(messages)
+      .values({
+        userId,
+        content: insertMessage.content,
+        response: "",
+        sages: insertMessage.sages,
+      })
+      .returning();
     return message;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
