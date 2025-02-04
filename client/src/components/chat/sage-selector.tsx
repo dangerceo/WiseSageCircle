@@ -35,7 +35,7 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
         </Button>
       </div>
 
-      <ScrollArea className="w-full">
+      <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-2 pb-2">
           {sages.map((sage) => (
             <Button
