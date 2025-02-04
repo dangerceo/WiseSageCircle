@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sages as sagesData } from "@/lib/sages";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -43,3 +44,4 @@ export const sageSchema = z.object({
 });
 
 export type Sage = z.infer<typeof sageSchema>;
+export const sages = sagesData;

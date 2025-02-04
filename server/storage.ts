@@ -8,6 +8,7 @@ export interface IStorage {
   updateUserCredits(id: number, credits: number): Promise<void>;
   getUserMessages(userId: number): Promise<Message[]>;
   createMessage(userId: number, message: InsertMessage): Promise<Message>;
+  updateMessageResponse(id: number, response: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -50,6 +51,13 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return message;
+  }
+
+  async updateMessageResponse(id: number, response: string): Promise<void> {
+    await db
+      .update(messages)
+      .set({ response })
+      .where(eq(messages.id, id));
   }
 }
 
