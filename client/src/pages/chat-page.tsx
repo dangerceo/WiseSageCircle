@@ -20,13 +20,13 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col p-4 gap-4">
+    <div className="min-h-screen bg-background p-2 sm:p-4 flex flex-col gap-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary">Spiritual Council</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-primary">Spiritual Council</h1>
         <CreditCounter credits={user?.credits ?? 0} />
       </div>
 
-      <Card className="flex-1 grid grid-rows-[auto,1fr,auto] gap-4 p-4">
+      <Card className="flex-1 grid grid-rows-[auto,1fr,auto] gap-2 sm:gap-4 p-2 sm:p-4">
         <SageSelector
           selected={selectedSages}
           onChange={setSelectedSages}
