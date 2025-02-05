@@ -7,14 +7,46 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const CREDIT_PACKAGES = [
-  { credits: 50, price: 5, id: "credit-50" },
-  { credits: 100, price: 9, id: "credit-100" },
-  { credits: 200, price: 15, id: "credit-200" },
+  {
+    credits: 50,
+    price: 5,
+    id: "credit-50",
+    name: "Seeker",
+    features: ["50 conversations with sages", "Access to all spiritual guides", "24/7 availability"],
+  },
+  {
+    credits: 100,
+    price: 9,
+    id: "credit-100",
+    name: "Devotee",
+    features: [
+      "100 conversations with sages",
+      "Access to all spiritual guides",
+      "24/7 availability",
+      "Priority response time",
+    ],
+    popular: true,
+  },
+  {
+    credits: 200,
+    price: 15,
+    id: "credit-200",
+    name: "Enlightened",
+    features: [
+      "200 conversations with sages",
+      "Access to all spiritual guides",
+      "24/7 availability",
+      "Priority response time",
+      "Extended conversation length",
+    ],
+  },
 ];
 
 interface CreditPurchaseModalProps {
@@ -26,12 +58,12 @@ export default function CreditPurchaseModal({
   open,
   onOpenChange,
 }: CreditPurchaseModalProps) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handlePurchase = async (packageId: string) => {
     try {
-      setLoading(true);
+      setLoading(packageId);
       const response = await apiRequest("POST", "/api/create-checkout-session", {
         priceId: packageId,
       });
@@ -44,33 +76,71 @@ export default function CreditPurchaseModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[900px]">
         <DialogHeader>
-          <DialogTitle>Purchase Credits</DialogTitle>
-          <DialogDescription>
-            Choose a credit package to continue your spiritual journey
+          <DialogTitle className="text-2xl text-center">Choose Your Spiritual Journey</DialogTitle>
+          <DialogDescription className="text-center text-lg">
+            Select a credit package to continue your path to enlightenment
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-6">
           {CREDIT_PACKAGES.map((pkg) => (
-            <Button
+            <Card
               key={pkg.id}
-              onClick={() => handlePurchase(pkg.id)}
-              disabled={loading}
-              className="w-full"
-              variant="outline"
+              className={cn(
+                "relative",
+                pkg.popular && "border-primary shadow-lg"
+              )}
             >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {pkg.credits} Credits for ${pkg.price}
-            </Button>
+              {pkg.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-primary text-primary-foreground text-sm font-medium px-3 py-1 rounded-full">
+                    Most Popular
+                  </span>
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle className="text-xl text-center">{pkg.name}</CardTitle>
+                <div className="text-center space-y-1">
+                  <div className="text-3xl font-bold">${pkg.price}</div>
+                  <div className="text-muted-foreground">
+                    {pkg.credits} credits
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {pkg.features.map((feature, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => handlePurchase(pkg.id)}
+                  disabled={!!loading}
+                  variant={pkg.popular ? "default" : "outline"}
+                >
+                  {loading === pkg.id ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Get Started
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
         </div>
       </DialogContent>
