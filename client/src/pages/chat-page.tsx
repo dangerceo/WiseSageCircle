@@ -5,11 +5,19 @@ import SageSelector from "@/components/chat/sage-selector";
 import MessageList from "@/components/chat/message-list";
 import ChatInput from "@/components/chat/chat-input";
 import CreditCounter from "@/components/chat/credit-counter";
-import { useState } from "react";
+import CreditPurchaseModal from "@/components/chat/credit-purchase-modal";
+import { useState, useEffect } from "react";
 
 export default function ChatPage() {
   const { user, isLoading } = useChat();
   const [selectedSages, setSelectedSages] = useState<string[]>([]);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.credits === 0) {
+      setShowPurchaseModal(true);
+    }
+  }, [user?.credits]);
 
   if (isLoading) {
     return (
@@ -37,6 +45,11 @@ export default function ChatPage() {
           disabled={selectedSages.length === 0 || (user?.credits ?? 0) <= 0}
         />
       </Card>
+
+      <CreditPurchaseModal 
+        open={showPurchaseModal} 
+        onOpenChange={setShowPurchaseModal}
+      />
     </div>
   );
 }
