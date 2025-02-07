@@ -15,7 +15,7 @@ export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
   content: text("content").notNull(),
-  response: text("response").notNull(),
+  responses: json("responses").$type<Record<string, string>>().notNull(),
   sages: json("sages").notNull(),
   createdAt: timestamp("created_at").defaultNow()
 });

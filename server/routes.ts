@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, sages } from "@shared/schema";
 import { z } from "zod";
-import { generateSageResponse } from "./lib/gemini";
+import { generateSageResponses } from "./lib/gemini"; // Assuming generateSageResponse is updated to generateSageResponses
 import { stripe, CREDIT_PRODUCTS } from "./lib/stripe";
 import * as express from 'express';
 
@@ -110,15 +110,18 @@ export function registerRoutes(app: Express): Server {
       }
 
       const messageData = insertMessageSchema.parse(req.body.message);
-      const message = await storage.createMessage(user.id, messageData);
+      const message = await storage.createMessage(user.id, {
+        ...messageData,
+        responses: {}
+      });
 
-      const selectedSages = sages.filter(sage => 
+      const selectedSages = sages.filter(sage =>
         (messageData.sages as string[]).includes(sage.id)
       );
 
-      const response = await generateSageResponse(messageData.content, selectedSages);
-      await storage.updateMessageResponse(message.id, response);
-      message.response = response;
+      const responses = await generateSageResponses(messageData.content, selectedSages);
+      await storage.updateMessageResponses(message.id, responses);
+      message.responses = responses;
 
       await storage.updateUserCredits(user.id, user.credits - 1);
 
@@ -128,7 +131,7 @@ export function registerRoutes(app: Express): Server {
         res.status(400).json(error);
       } else {
         console.error("Error handling message:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: error.message || "Internal server error" });
       }
     }
   });

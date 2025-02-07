@@ -7,8 +7,8 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserCredits(id: number, credits: number): Promise<void>;
   getUserMessages(userId: number): Promise<Message[]>;
-  createMessage(userId: number, message: InsertMessage): Promise<Message>;
-  updateMessageResponse(id: number, response: string): Promise<void>;
+  createMessage(userId: number, message: InsertMessage & { responses: Record<string, string> }): Promise<Message>;
+  updateMessageResponses(id: number, responses: Record<string, string>): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -40,23 +40,23 @@ export class DatabaseStorage implements IStorage {
       .orderBy(messages.createdAt);
   }
 
-  async createMessage(userId: number, insertMessage: InsertMessage): Promise<Message> {
+  async createMessage(userId: number, insertMessage: InsertMessage & { responses: Record<string, string> }): Promise<Message> {
     const [message] = await db
       .insert(messages)
       .values({
         userId,
         content: insertMessage.content,
-        response: "",
+        responses: insertMessage.responses,
         sages: insertMessage.sages,
       })
       .returning();
     return message;
   }
 
-  async updateMessageResponse(id: number, response: string): Promise<void> {
+  async updateMessageResponses(id: number, responses: Record<string, string>): Promise<void> {
     await db
       .update(messages)
-      .set({ response })
+      .set({ responses })
       .where(eq(messages.id, id));
   }
 }
