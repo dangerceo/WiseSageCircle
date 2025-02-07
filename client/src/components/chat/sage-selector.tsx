@@ -24,33 +24,33 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
   return (
     <div className="space-y-2 w-full">
       <div className="flex justify-between items-center gap-2">
-        <h2 className="text-base sm:text-lg font-semibold">Choose Your Guides</h2>
+        <h2 className="text-sm sm:text-base font-semibold">Choose Your Guides</h2>
         <Button
           variant="outline"
           size="sm"
           onClick={selectAll}
-          className="shrink-0"
+          className="shrink-0 text-xs sm:text-sm px-2 h-8"
         >
           {selected.length === sages.length ? "Deselect All" : "Council Mode"}
         </Button>
       </div>
 
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex gap-2 pb-2">
+      <ScrollArea className="w-full">
+        <div className="flex w-max gap-2 pb-2">
           {sages.map((sage) => (
             <Button
               key={sage.id}
               variant={selected.includes(sage.id) ? "default" : "outline"}
-              className="flex flex-col items-center gap-1 p-2 h-auto w-[100px] sm:w-[120px] shrink-0"
+              className="flex flex-col items-center gap-1 p-2 h-auto w-[80px] sm:w-[100px]"
               onClick={() => toggleSage(sage.id)}
             >
-              <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+              <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                 <AvatarImage src={sage.image} alt={sage.name} />
                 <AvatarFallback>{sage.name[0]}</AvatarFallback>
               </Avatar>
               <div className="text-center">
-                <div className="font-medium text-xs sm:text-sm truncate w-full">{sage.name}</div>
-                <div className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{sage.title}</div>
+                <div className="font-medium text-[10px] sm:text-xs truncate w-full">{sage.name}</div>
+                <div className="text-[8px] sm:text-[10px] text-muted-foreground line-clamp-1">{sage.title}</div>
               </div>
             </Button>
           ))}
