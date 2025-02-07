@@ -22,32 +22,34 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-2 py-4 sm:p-4 flex flex-col gap-4">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">Spiritual Council</h1>
-        <div className="shrink-0">
-          <CreditCounter credits={user?.credits ?? 0} />
+    <div className="min-h-screen bg-background px-2 py-4 sm:p-4 flex flex-col items-center">
+      <div className="w-full max-w-3xl flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
+          <h1 className="text-xl sm:text-2xl font-bold text-primary">Spiritual Council</h1>
+          <div className="shrink-0">
+            <CreditCounter credits={user?.credits ?? 0} />
+          </div>
         </div>
+
+        <Card className="flex-1 grid grid-rows-[auto,1fr,auto] gap-2 sm:gap-4 p-2 sm:p-4">
+          <SageSelector
+            selected={selectedSages}
+            onChange={setSelectedSages}
+          />
+          <MessageList />
+          <ChatInput
+            selectedSages={selectedSages}
+            disabled={selectedSages.length === 0}
+            onNeedCredits={() => setShowPurchaseModal(true)}
+            hasCredits={(user?.credits ?? 0) > 0}
+          />
+        </Card>
+
+        <CreditPurchaseModal 
+          open={showPurchaseModal} 
+          onOpenChange={setShowPurchaseModal}
+        />
       </div>
-
-      <Card className="flex-1 grid grid-rows-[auto,1fr,auto] gap-2 sm:gap-4 p-2 sm:p-4">
-        <SageSelector
-          selected={selectedSages}
-          onChange={setSelectedSages}
-        />
-        <MessageList />
-        <ChatInput
-          selectedSages={selectedSages}
-          disabled={selectedSages.length === 0}
-          onNeedCredits={() => setShowPurchaseModal(true)}
-          hasCredits={(user?.credits ?? 0) > 0}
-        />
-      </Card>
-
-      <CreditPurchaseModal 
-        open={showPurchaseModal} 
-        onOpenChange={setShowPurchaseModal}
-      />
     </div>
   );
 }

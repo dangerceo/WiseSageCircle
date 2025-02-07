@@ -33,18 +33,19 @@ export default function ChatInput({ selectedSages, disabled, hasCredits, onNeedC
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex gap-2 px-1">
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder={disabled ? "Select a sage to begin..." : "Ask your question..."}
         disabled={disabled}
-        className="min-h-[80px]"
+        className="min-h-[80px] resize-none"
       />
       <Button 
         type="submit" 
         disabled={!content.trim() || disabled || isSending}
         size="icon"
+        className="shrink-0"
       >
         {isSending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
