@@ -1,12 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, sages } from "@shared/schema";
 import { z } from "zod";
-import { generateSageResponses } from "./lib/gemini"; // Assuming generateSageResponse is updated to generateSageResponses
+import { generateSageResponses } from "./lib/gemini";
 import { stripe, CREDIT_PRODUCTS } from "./lib/stripe";
 import * as express from 'express';
-
 
 export function registerRoutes(app: Express): Server {
   app.post("/api/session", async (req, res) => {
@@ -92,9 +92,10 @@ export function registerRoutes(app: Express): Server {
       }
 
       res.json({ received: true });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Webhook error:", error);
-      res.status(400).send(`Webhook Error: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      res.status(400).send(`Webhook Error: ${errorMessage}`);
     }
   });
 
@@ -119,19 +120,27 @@ export function registerRoutes(app: Express): Server {
         (messageData.sages as string[]).includes(sage.id)
       );
 
-      const responses = await generateSageResponses(messageData.content, selectedSages);
-      await storage.updateMessageResponses(message.id, responses);
-      message.responses = responses;
+      // Initial empty responses will be updated via WebSocket
+      res.json(message);
 
+      // Update credits immediately
       await storage.updateUserCredits(user.id, user.credits - 1);
 
-      res.json(message);
-    } catch (error) {
+      // Generate responses asynchronously
+      const responses = await generateSageResponses(
+        messageData.content,
+        selectedSages,
+        null,
+        message.id
+      );
+      await storage.updateMessageResponses(message.id, responses);
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json(error);
       } else {
         console.error("Error handling message:", error);
-        res.status(500).json({ message: error.message || "Internal server error" });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error";
+        res.status(500).json({ message: errorMessage });
       }
     }
   });
@@ -151,5 +160,34 @@ export function registerRoutes(app: Express): Server {
   });
 
   const httpServer = createServer(app);
+
+  // Set up WebSocket server
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.type === 'start_chat') {
+          const { sessionId, messageId, content, selectedSages } = message;
+
+          const user = await storage.getUser(sessionId);
+          if (!user) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid session' }));
+            return;
+          }
+
+          const filteredSages = sages.filter(sage => selectedSages.includes(sage.id));
+          await generateSageResponses(content, filteredSages, ws, messageId);
+        }
+      } catch (error) {
+        console.error('WebSocket error:', error);
+        ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+      }
+    });
+  });
+
   return httpServer;
 }

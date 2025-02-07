@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState, useRef } from "react";
 import { Message, User } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -25,6 +25,44 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return newId;
   });
 
+  const wsRef = useRef<WebSocket | null>(null);
+  const [streamingResponses, setStreamingResponses] = useState<Record<number, Record<string, string>>>({});
+
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    function connect() {
+      const ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'stream') {
+          setStreamingResponses(prev => ({
+            ...prev,
+            [data.messageId]: {
+              ...prev[data.messageId],
+              [data.sageId]: (prev[data.messageId]?.[data.sageId] || '') + data.chunk
+            }
+          }));
+        } else if (data.type === 'complete') {
+          // When a sage completes their response, we'll leave it in streaming state
+          // until all sages are done, then the full response will come from the server
+        }
+      };
+
+      ws.onclose = () => {
+        // Reconnect on close
+        setTimeout(connect, 1000);
+      };
+
+      wsRef.current = ws;
+    }
+
+    connect();
+    return () => wsRef.current?.close();
+  }, []);
+
   const { data: user, isLoading: isUserLoading } = useQuery<User>({
     queryKey: ["/api/session"],
     queryFn: async () => {
@@ -43,6 +81,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     enabled: !!user,
   });
 
+  // Combine stored messages with streaming responses
+  const enhancedMessages = messages.map(msg => ({
+    ...msg,
+    responses: streamingResponses[msg.id] || msg.responses
+  }));
+
   const messageMutation = useMutation({
     mutationFn: async ({
       content,
@@ -55,7 +99,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         sessionId,
         message: { content, sages },
       });
-      return res.json();
+      const message = await res.json();
+
+      // Start streaming responses
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'start_chat',
+          sessionId,
+          messageId: message.id,
+          content,
+          selectedSages: sages,
+        }));
+      }
+
+      return message;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
@@ -78,7 +135,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     <ChatContext.Provider
       value={{
         user: user ?? null,
-        messages,
+        messages: enhancedMessages,
         sendMessage,
         isLoading: isUserLoading || isMessagesLoading,
         isSending: messageMutation.isPending,

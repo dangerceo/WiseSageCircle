@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Sage } from "@shared/schema";
+import { WebSocket } from "ws";
 
 if (!process.env.GEMINI_API_KEY) {
   throw new Error("GEMINI_API_KEY environment variable is not set");
@@ -7,7 +8,12 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-async function generateSingleSageResponse(content: string, sage: Sage): Promise<string> {
+async function generateSingleSageResponse(
+  content: string,
+  sage: Sage,
+  ws: WebSocket | null,
+  messageId: number
+): Promise<string> {
   try {
     const prompt = `
       You are ${sage.name}, ${sage.title}.
@@ -21,13 +27,28 @@ async function generateSingleSageResponse(content: string, sage: Sage): Promise<
 
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const result = await model.generateContent(prompt);
-    const response = result.response.text();
+    const response = result.response;
 
-    if (!response) {
-      throw new Error("No response received from the sage. Please try rephrasing your question.");
+    if (ws?.readyState === WebSocket.OPEN) {
+      const chunks = response.text().match(/.{1,20}|.+$/g) || [];
+      for (const chunk of chunks) {
+        ws.send(JSON.stringify({
+          type: 'stream',
+          messageId,
+          sageId: sage.id,
+          chunk
+        }));
+        // Add a small delay between chunks to simulate typing
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      ws.send(JSON.stringify({
+        type: 'complete',
+        messageId,
+        sageId: sage.id
+      }));
     }
 
-    return response;
+    return response.text();
   } catch (error: any) {
     console.error(`Error generating response for ${sage.name}:`, error);
     if (error.message?.includes("SAFETY")) {
@@ -37,7 +58,12 @@ async function generateSingleSageResponse(content: string, sage: Sage): Promise<
   }
 }
 
-export async function generateSageResponses(content: string, selectedSages: Sage[]): Promise<Record<string, string>> {
+export async function generateSageResponses(
+  content: string,
+  selectedSages: Sage[],
+  ws: WebSocket | null = null,
+  messageId: number
+): Promise<Record<string, string>> {
   if (!selectedSages.length) {
     throw new Error("No sages selected");
   }
@@ -49,7 +75,7 @@ export async function generateSageResponses(content: string, selectedSages: Sage
   await Promise.all(
     selectedSages.map(async (sage) => {
       try {
-        const response = await generateSingleSageResponse(content, sage);
+        const response = await generateSingleSageResponse(content, sage, ws, messageId);
         responses[sage.id] = response;
       } catch (error) {
         errors.push(error as Error);
