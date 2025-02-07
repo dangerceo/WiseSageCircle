@@ -23,9 +23,10 @@ export default function MessageList() {
               const sage = sages.find(s => s.id === sageId);
               if (!sage) return null;
 
-              // Show typing indicator if the response is undefined (not started)
-              // or if it's an empty string (just started streaming)
-              const isTyping = !message.responses || message.responses[sageId] === undefined || message.responses[sageId] === '';
+              // Only show typing indicator for the most recent message
+              // and only if we haven't received a response yet
+              const isLatestMessage = message.id === messages[messages.length - 1]?.id;
+              const isTyping = isLatestMessage && (!message.responses || message.responses[sageId] === undefined || message.responses[sageId] === '');
 
               return (
                 <div key={sageId} className="flex items-start gap-4">
