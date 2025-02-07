@@ -6,6 +6,7 @@ import MessageList from "@/components/chat/message-list";
 import ChatInput from "@/components/chat/chat-input";
 import CreditCounter from "@/components/chat/credit-counter";
 import CreditPurchaseModal from "@/components/chat/credit-purchase-modal";
+import ChatSessionList from "@/components/chat/chat-session-list";
 import { Logo } from "@/components/ui/logo";
 import { useState } from "react";
 import {
@@ -41,7 +42,7 @@ export default function ChatPage() {
           <ResizablePanel defaultSize={25} minSize={20} maxSize={30} className="hidden md:block">
             <Card className="h-full rounded-none md:rounded-l-lg border-0 md:border">
               <div className="h-full flex flex-col p-2 sm:p-4">
-                <MessageList />
+                <ChatSessionList />
               </div>
             </Card>
           </ResizablePanel>
@@ -55,9 +56,7 @@ export default function ChatPage() {
                   selected={selectedSages}
                   onChange={setSelectedSages}
                 />
-                <div className="md:hidden">
-                  <MessageList />
-                </div>
+                <MessageList />
                 <ChatInput
                   selectedSages={selectedSages}
                   disabled={selectedSages.length === 0}
