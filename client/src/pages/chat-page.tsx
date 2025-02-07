@@ -37,7 +37,7 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <main className="flex-1 container max-w-[1600px] mx-auto">
+      <main className="flex-1 container max-w-[1600px] mx-auto overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg">
           <ResizablePanel defaultSize={25} minSize={20} maxSize={30} className="hidden md:block">
             <Card className="h-full rounded-none md:rounded-l-lg border-0 md:border">
@@ -51,18 +51,26 @@ export default function ChatPage() {
 
           <ResizablePanel defaultSize={75}>
             <Card className="h-full rounded-none md:rounded-r-lg border-0 md:border">
-              <div className="h-full grid grid-rows-[auto,1fr,auto] gap-2 sm:gap-4 p-2 sm:p-4">
-                <SageSelector
-                  selected={selectedSages}
-                  onChange={setSelectedSages}
-                />
-                <MessageList />
-                <ChatInput
-                  selectedSages={selectedSages}
-                  disabled={selectedSages.length === 0}
-                  onNeedCredits={() => setShowPurchaseModal(true)}
-                  hasCredits={(user?.credits ?? 0) > 0}
-                />
+              <div className="h-full flex flex-col">
+                <div className="p-2 sm:p-4 border-b">
+                  <SageSelector
+                    selected={selectedSages}
+                    onChange={setSelectedSages}
+                  />
+                </div>
+
+                <div className="flex-1 overflow-hidden">
+                  <MessageList />
+                </div>
+
+                <div className="p-2 sm:p-4 border-t">
+                  <ChatInput
+                    selectedSages={selectedSages}
+                    disabled={selectedSages.length === 0}
+                    onNeedCredits={() => setShowPurchaseModal(true)}
+                    hasCredits={(user?.credits ?? 0) > 0}
+                  />
+                </div>
               </div>
             </Card>
           </ResizablePanel>

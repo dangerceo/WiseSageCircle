@@ -21,8 +21,8 @@ export default function MessageList() {
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 pr-4 -mr-4" ref={scrollContainerRef}>
-      <div className="space-y-4">
+    <ScrollArea ref={scrollContainerRef} className="h-full">
+      <div className="space-y-4 p-4">
         {messages.map((message) => (
           <div key={message.id} className="space-y-4">
             <Card className="bg-muted/50">
