@@ -36,7 +36,7 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
       </div>
 
       <ScrollArea className="w-full">
-        <div className="flex w-max gap-2 pb-2 pr-4">
+        <div className="flex w-max gap-2 pb-2">
           {sages.map((sage) => (
             <Button
               key={sage.id}
