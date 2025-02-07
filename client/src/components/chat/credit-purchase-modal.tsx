@@ -83,15 +83,15 @@ export default function CreditPurchaseModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] h-[90vh] sm:h-auto">
+      <DialogContent className="w-[calc(100vw-32px)] sm:w-auto sm:max-w-[900px] h-[calc(100vh-32px)] sm:h-auto p-4 sm:p-6">
         <ScrollArea className="h-full pr-4">
-          <DialogHeader>
+          <DialogHeader className="mb-6">
             <DialogTitle className="text-2xl text-center">Choose Your Spiritual Journey</DialogTitle>
             <DialogDescription className="text-center text-lg">
               Select a credit package to continue your path to enlightenment
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {CREDIT_PACKAGES.map((pkg) => (
               <Card
                 key={pkg.id}
@@ -120,7 +120,7 @@ export default function CreditPurchaseModal({
                   <ul className="space-y-2">
                     {pkg.features.map((feature, i) => (
                       <li key={i} className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary" />
+                        <Check className="h-4 w-4 text-primary shrink-0" />
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
