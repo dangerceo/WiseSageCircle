@@ -8,7 +8,7 @@ export default function MessageList() {
   const { messages } = useChat();
 
   return (
-    <ScrollArea className="h-[500px] pr-4">
+    <ScrollArea className="flex-1 pr-4 -mr-4">
       <div className="space-y-4">
         {messages.map((message) => (
           <div key={message.id} className="space-y-4">

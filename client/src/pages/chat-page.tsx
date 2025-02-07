@@ -8,6 +8,11 @@ import CreditCounter from "@/components/chat/credit-counter";
 import CreditPurchaseModal from "@/components/chat/credit-purchase-modal";
 import { Logo } from "@/components/ui/logo";
 import { useState } from "react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 
 export default function ChatPage() {
   const { user, isLoading } = useChat();
@@ -23,34 +28,52 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-2 py-4 sm:p-4 flex flex-col items-center">
-      <div className="w-full max-w-3xl flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
+    <div className="h-screen bg-background flex flex-col">
+      <header className="border-b p-4">
+        <div className="container max-w-[1600px] mx-auto flex items-center justify-between gap-4">
           <Logo />
-          <div className="shrink-0">
-            <CreditCounter credits={user?.credits ?? 0} />
-          </div>
+          <CreditCounter credits={user?.credits ?? 0} />
         </div>
+      </header>
 
-        <Card className="flex-1 grid grid-rows-[auto,1fr,auto] gap-2 sm:gap-4 p-2 sm:p-4">
-          <SageSelector
-            selected={selectedSages}
-            onChange={setSelectedSages}
-          />
-          <MessageList />
-          <ChatInput
-            selectedSages={selectedSages}
-            disabled={selectedSages.length === 0}
-            onNeedCredits={() => setShowPurchaseModal(true)}
-            hasCredits={(user?.credits ?? 0) > 0}
-          />
-        </Card>
+      <main className="flex-1 container max-w-[1600px] mx-auto">
+        <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg">
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={30} className="hidden md:block">
+            <Card className="h-full rounded-none md:rounded-l-lg border-0 md:border">
+              <div className="h-full flex flex-col p-2 sm:p-4">
+                <MessageList />
+              </div>
+            </Card>
+          </ResizablePanel>
 
-        <CreditPurchaseModal 
-          open={showPurchaseModal} 
-          onOpenChange={setShowPurchaseModal}
-        />
-      </div>
+          <ResizableHandle className="hidden md:flex" />
+
+          <ResizablePanel defaultSize={75}>
+            <Card className="h-full rounded-none md:rounded-r-lg border-0 md:border">
+              <div className="h-full grid grid-rows-[auto,1fr,auto] gap-2 sm:gap-4 p-2 sm:p-4">
+                <SageSelector
+                  selected={selectedSages}
+                  onChange={setSelectedSages}
+                />
+                <div className="md:hidden">
+                  <MessageList />
+                </div>
+                <ChatInput
+                  selectedSages={selectedSages}
+                  disabled={selectedSages.length === 0}
+                  onNeedCredits={() => setShowPurchaseModal(true)}
+                  hasCredits={(user?.credits ?? 0) > 0}
+                />
+              </div>
+            </Card>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </main>
+
+      <CreditPurchaseModal 
+        open={showPurchaseModal} 
+        onOpenChange={setShowPurchaseModal}
+      />
     </div>
   );
 }

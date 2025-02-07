@@ -11,42 +11,42 @@ export default function HomePage() {
     <div 
       className="min-h-screen bg-background flex items-center justify-center p-4"
       style={{
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(https://images.unsplash.com/photo-1519181245277-cffeb31da2e3)`,
+        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), url(https://images.unsplash.com/photo-1600019246742-3b66977db044)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed'
       }}
     >
       <div className="container max-w-6xl mx-auto grid md:grid-cols-2 gap-8 items-center">
-        <div className="text-center md:text-left text-white space-y-6">
+        <div className="text-center md:text-left space-y-6">
           <div className="mb-8">
             <Logo className="justify-center md:justify-start" />
           </div>
           <h1 className="text-4xl font-bold mb-4">Your Personal Spiritual Guide</h1>
-          <p className="text-xl opacity-90 leading-relaxed">
+          <p className="text-xl text-muted-foreground leading-relaxed">
             Connect with ancient wisdom through AI-powered conversations with spiritual masters and sages. Find guidance, peace, and enlightenment on your journey.
           </p>
           <div className="grid grid-cols-2 gap-4 pt-6">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white/10 backdrop-blur">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-primary/5">
               <Heart className="h-6 w-6 text-primary" />
               <span className="text-sm font-medium">Personalized Guidance</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white/10 backdrop-blur">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-primary/5">
               <Moon className="h-6 w-6 text-primary" />
               <span className="text-sm font-medium">Ancient Wisdom</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white/10 backdrop-blur">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-primary/5">
               <Sparkles className="h-6 w-6 text-primary" />
               <span className="text-sm font-medium">Divine Insights</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white/10 backdrop-blur">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-primary/5">
               <Feather className="h-6 w-6 text-primary" />
               <span className="text-sm font-medium">Inner Peace</span>
             </div>
           </div>
         </div>
 
-        <Card className="bg-background/95 backdrop-blur">
+        <Card>
           <CardContent className="p-6">
             <div className="space-y-4">
               <h2 className="text-2xl font-semibold text-center mb-6">Begin Your Spiritual Journey</h2>
