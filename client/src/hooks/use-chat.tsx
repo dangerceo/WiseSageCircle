@@ -63,7 +63,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error sending message",
+        title: "The sages couldn't process your question",
         description: error.message,
         variant: "destructive",
       });

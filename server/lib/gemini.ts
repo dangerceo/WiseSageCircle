@@ -30,6 +30,7 @@ export async function generateSageResponse(content: string, selectedSages: Sage[
       Seeker's question: ${content}
 
       Please provide a response that combines wisdom from all present sages, maintaining their individual voices and perspectives while keeping the total response concise and focused.
+      Remember to keep the response respectful and within safe content guidelines.
     `.trim();
 
     // Generate response using Gemini
@@ -38,12 +39,20 @@ export async function generateSageResponse(content: string, selectedSages: Sage[
     const response = result.response.text();
 
     if (!response) {
-      throw new Error("Empty response from Gemini");
+      throw new Error("No response received from the sages. Please try rephrasing your question.");
     }
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating Gemini response:", error);
-    throw new Error("Failed to generate response from sages. Please try again.");
+
+    // Provide user-friendly error messages
+    if (error.message?.includes("SAFETY")) {
+      throw new Error("Your question touches on sensitive topics. Please rephrase it focusing on spiritual guidance and wisdom.");
+    } else if (error.message?.includes("No response received")) {
+      throw new Error("The sages are contemplating deeply. Please try asking your question again.");
+    } else {
+      throw new Error("The sages are temporarily unavailable. Please try again in a moment.");
+    }
   }
 }
