@@ -4,12 +4,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { sages } from "@/lib/sages";
 import TypingIndicator from "./typing-indicator";
+import { useEffect, useRef } from "react";
 
 export default function MessageList() {
   const { messages } = useChat();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.scrollTo({
+        top: scrollContainer.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 pr-4 -mr-4">
+    <ScrollArea className="flex-1 pr-4 -mr-4" ref={scrollContainerRef}>
       <div className="space-y-4">
         {messages.map((message) => (
           <div key={message.id} className="space-y-4">
