@@ -32,11 +32,19 @@ export default function ChatInput({ selectedSages, disabled, hasCredits, onNeedC
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="flex gap-2 px-1">
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder={disabled ? "Select a sage to begin..." : "Ask your question..."}
         disabled={disabled}
         className="min-h-[80px] resize-none"
