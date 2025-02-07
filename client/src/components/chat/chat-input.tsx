@@ -7,15 +7,22 @@ import { SendHorizonal, Loader2 } from "lucide-react";
 interface ChatInputProps {
   selectedSages: string[];
   disabled: boolean;
+  hasCredits: boolean;
+  onNeedCredits: () => void;
 }
 
-export default function ChatInput({ selectedSages, disabled }: ChatInputProps) {
+export default function ChatInput({ selectedSages, disabled, hasCredits, onNeedCredits }: ChatInputProps) {
   const [content, setContent] = useState("");
   const { sendMessage, isSending } = useChat();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || disabled || isSending) return;
+
+    if (!hasCredits) {
+      onNeedCredits();
+      return;
+    }
 
     try {
       await sendMessage(content.trim(), selectedSages);
