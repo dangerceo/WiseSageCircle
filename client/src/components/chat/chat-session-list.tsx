@@ -1,12 +1,10 @@
 import { useChat } from "@/hooks/use-chat";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { PlusCircle } from "lucide-react";
 
 export default function ChatSessionList() {
-  const { messages, startNewConversation } = useChat();
+  const { messages } = useChat();
 
   // Group messages by conversation (using createdAt date as identifier)
   const conversations = messages.reduce((acc, message) => {
@@ -25,18 +23,7 @@ export default function ChatSessionList() {
   return (
     <ScrollArea className="flex-1 pr-4 -mr-4">
       <div className="space-y-2">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">Previous Conversations</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={startNewConversation}
-            className="gap-2"
-          >
-            <PlusCircle className="h-4 w-4" />
-            New Chat
-          </Button>
-        </div>
+        <h2 className="font-semibold mb-4">Previous Conversations</h2>
         {Object.entries(conversations)
           .sort(([, a], [, b]) => b.date.getTime() - a.date.getTime())
           .map(([dateKey, { firstMessage, date }]) => (

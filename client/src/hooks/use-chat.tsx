@@ -9,7 +9,6 @@ type ChatContextType = {
   user: User | null;
   messages: Message[];
   sendMessage: (content: string, sages: string[]) => Promise<void>;
-  startNewConversation: () => void;
   isLoading: boolean;
   isSending: boolean;
 };
@@ -18,7 +17,7 @@ const ChatContext = createContext<ChatContextType | null>(null);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const [sessionId, setSessionId] = useState(() => {
+  const [sessionId] = useState(() => {
     const stored = localStorage.getItem("sessionId");
     if (stored) return stored;
     const newId = uuidv4();
@@ -71,12 +70,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const startNewConversation = () => {
-    const newId = uuidv4();
-    localStorage.setItem("sessionId", newId);
-    setSessionId(newId);
-  };
-
   const sendMessage = async (content: string, sages: string[]) => {
     await messageMutation.mutateAsync({ content, sages });
   };
@@ -87,7 +80,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         user: user ?? null,
         messages,
         sendMessage,
-        startNewConversation,
         isLoading: isUserLoading || isMessagesLoading,
         isSending: messageMutation.isPending,
       }}
