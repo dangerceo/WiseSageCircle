@@ -6,6 +6,7 @@ import MessageList from "@/components/chat/message-list";
 import ChatInput from "@/components/chat/chat-input";
 import CreditCounter from "@/components/chat/credit-counter";
 import CreditPurchaseModal from "@/components/chat/credit-purchase-modal";
+import { Logo } from "@/components/ui/logo";
 import { useState } from "react";
 
 export default function ChatPage() {
@@ -25,7 +26,7 @@ export default function ChatPage() {
     <div className="min-h-screen bg-background px-2 py-4 sm:p-4 flex flex-col items-center">
       <div className="w-full max-w-3xl flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold text-primary">Spiritual Council</h1>
+          <Logo />
           <div className="shrink-0">
             <CreditCounter credits={user?.credits ?? 0} />
           </div>
