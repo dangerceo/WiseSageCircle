@@ -1,12 +1,11 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Sage } from "@shared/schema";
 import { WebSocket } from "ws";
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("GEMINI_API_KEY environment variable is not set");
+if (!process.env.CLOUDFLARE_AI_GATEWAY_URL) {
+  throw new Error("CLOUDFLARE_AI_GATEWAY_URL environment variable is not set");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GATEWAY_URL = process.env.CLOUDFLARE_AI_GATEWAY_URL;
 
 async function generateSingleSageResponse(
   content: string,
@@ -25,12 +24,31 @@ async function generateSingleSageResponse(
       Keep the response respectful, focused, and within safe content guidelines.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
+    const response = await fetch(GATEWAY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'system',
+            content: prompt
+          }
+        ],
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gateway error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const responseText = result.response || result.content || '';
 
     if (ws?.readyState === WebSocket.OPEN) {
-      const chunks = response.text().match(/.{1,20}|.+$/g) || [];
+      const chunks = responseText.match(/.{1,20}|.+$/g) || [];
       for (const chunk of chunks) {
         ws.send(JSON.stringify({
           type: 'stream',
@@ -48,7 +66,7 @@ async function generateSingleSageResponse(
       }));
     }
 
-    return response.text();
+    return responseText;
   } catch (error: any) {
     console.error(`Error generating response for ${sage.name}:`, error);
     if (error.message?.includes("SAFETY")) {
