@@ -1,16 +1,31 @@
-import { createContext, ReactNode, useContext, useEffect, useState, useRef } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { Message, User } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { sages } from "@/lib/sages";
 
 type ChatContextType = {
-  user: User | null;
-  messages: Message[];
+  user: SimplifiedUser;
+  messages: SimplifiedMessage[];
   sendMessage: (content: string, sages: string[]) => Promise<void>;
   isLoading: boolean;
   isSending: boolean;
+};
+
+// Simplified types for client-side use
+type SimplifiedUser = {
+  id: number;
+  sessionId: string;
+  credits: number;
+};
+
+type SimplifiedMessage = {
+  id: number;
+  content: string;
+  sages: string[];
+  responses: Record<string, string>;
+  createdAt: string;
 };
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -25,100 +40,75 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return newId;
   });
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const [streamingResponses, setStreamingResponses] = useState<Record<number, Record<string, string>>>({});
+  const [messages, setMessages] = useState<SimplifiedMessage[]>(() => {
+    const stored = localStorage.getItem(`messages_${sessionId}`);
+    return stored ? JSON.parse(stored) : [];
+  });
+
+  const [credits, setCredits] = useState(() => {
+    const stored = localStorage.getItem("credits");
+    return stored ? parseInt(stored, 10) : 10;
+  });
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-
-    function connect() {
-      const ws = new WebSocket(wsUrl);
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'stream') {
-          setStreamingResponses(prev => ({
-            ...prev,
-            [data.messageId]: {
-              ...prev[data.messageId],
-              [data.sageId]: (prev[data.messageId]?.[data.sageId] || '') + data.chunk
-            }
-          }));
-        } else if (data.type === 'complete') {
-          // When a sage completes their response, we'll leave it in streaming state
-          // until all sages are done, then the full response will come from the server
-        }
-      };
-
-      ws.onclose = () => {
-        // Reconnect on close
-        setTimeout(connect, 1000);
-      };
-
-      wsRef.current = ws;
-    }
-
-    connect();
-    return () => wsRef.current?.close();
-  }, []);
-
-  const { data: user, isLoading: isUserLoading } = useQuery<User>({
-    queryKey: ["/api/session"],
-    queryFn: async () => {
-      const res = await apiRequest("POST", "/api/session", { sessionId });
-      return res.json();
-    },
-  });
-
-  const { data: messages = [], isLoading: isMessagesLoading } = useQuery<Message[]>({
-    queryKey: ["/api/messages", sessionId],
-    queryFn: async () => {
-      const res = await fetch(`/api/messages/${sessionId}`);
-      if (!res.ok) throw new Error("Failed to fetch messages");
-      return res.json();
-    },
-    enabled: !!user,
-  });
-
-  // Combine stored messages with streaming responses
-  const enhancedMessages = messages.map(msg => ({
-    ...msg,
-    responses: streamingResponses[msg.id] || msg.responses
-  }));
+    localStorage.setItem("credits", credits.toString());
+  }, [credits]);
 
   const messageMutation = useMutation({
     mutationFn: async ({
       content,
-      sages,
+      sages: selectedSages,
     }: {
       content: string;
       sages: string[];
     }) => {
-      const res = await apiRequest("POST", "/api/messages", {
-        sessionId,
-        message: { content, sages },
-      });
-      const message = await res.json();
+      if (credits <= 0) {
+        throw new Error("No credits remaining");
+      }
+      setCredits(prev => prev - 1);
 
-      // Start streaming responses
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'start_chat',
-          sessionId,
-          messageId: message.id,
+      const newMessage: SimplifiedMessage = {
+        id: Date.now(),
+        content,
+        sages: selectedSages,
+        responses: {},
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages(prev => [...prev, newMessage]);
+
+      const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
+      const response = await fetch('/_api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           content,
-          selectedSages: sages,
-        }));
+          selectedSages: selectedSageDetails,
+          messageId: newMessage.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate responses');
       }
 
-      return message;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/session"] });
+      const { responses } = await response.json();
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === newMessage.id
+            ? { ...msg, responses }
+            : msg
+        )
+      );
+
+      return newMessage;
     },
     onError: (error: Error) => {
+      setCredits(prev => prev + 1);
       toast({
         title: "The sages couldn't process your question",
         description: error.message,
@@ -127,17 +117,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const sendMessage = async (content: string, sages: string[]) => {
-    await messageMutation.mutateAsync({ content, sages });
+  useEffect(() => {
+    localStorage.setItem(`messages_${sessionId}`, JSON.stringify(messages));
+  }, [messages, sessionId]);
+
+  const user: SimplifiedUser = {
+    id: 1,
+    sessionId,
+    credits
   };
 
   return (
     <ChatContext.Provider
       value={{
-        user: user ?? null,
-        messages: enhancedMessages,
-        sendMessage,
-        isLoading: isUserLoading || isMessagesLoading,
+        user,
+        messages,
+        sendMessage: async (content, sages) => {
+          await messageMutation.mutateAsync({ content, sages });
+        },
+        isLoading: false,
         isSending: messageMutation.isPending,
       }}
     >
