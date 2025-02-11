@@ -5,9 +5,6 @@ import { storage } from "./storage";
 import { insertUserSchema, insertMessageSchema, sages } from "@shared/schema";
 import { z } from "zod";
 import { generateSageResponses } from "./lib/gemini";
-import { stripe, CREDIT_PRODUCTS } from "./lib/stripe";
-import * as express from 'express';
-import type Stripe from 'stripe';
 
 export function registerRoutes(app: Express): Server {
   app.post("/api/session", async (req, res) => {
@@ -27,76 +24,6 @@ export function registerRoutes(app: Express): Server {
       } else {
         res.status(500).json({ message: "Internal server error" });
       }
-    }
-  });
-
-  app.post("/api/create-checkout-session", async (req, res) => {
-    try {
-      const { priceId } = req.body;
-      const product = CREDIT_PRODUCTS[priceId as keyof typeof CREDIT_PRODUCTS];
-
-      if (!product) {
-        return res.status(400).json({ message: "Invalid product" });
-      }
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: `${product.credits} Spiritual Council Credits`,
-                description: `Package of ${product.credits} credits for spiritual guidance`,
-              },
-              unit_amount: product.price,
-            },
-            quantity: 1,
-          },
-        ],
-        mode: "payment",
-        success_url: `${req.protocol}://${req.get("host")}/chat?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.protocol}://${req.get("host")}/chat`,
-        metadata: {
-          credits: product.credits.toString(),
-          userId: req.body.sessionId,
-        },
-      });
-
-      res.json({ url: session.url });
-    } catch (error) {
-      console.error("Stripe session creation error:", error);
-      res.status(500).json({ message: "Failed to create checkout session" });
-    }
-  });
-
-  app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-    try {
-      const sig = req.headers["stripe-signature"];
-      const event = stripe.webhooks.constructEvent(
-        req.body,
-        sig as string,
-        process.env.STRIPE_WEBHOOK_SECRET as string
-      );
-
-      if (event.type === "checkout.session.completed") {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.userId;
-        const credits = parseInt(session.metadata?.credits || "0");
-
-        if (userId && credits) {
-          const user = await storage.getUser(userId);
-          if (user) {
-            await storage.updateUserCredits(user.id, user.credits + credits);
-          }
-        }
-      }
-
-      res.json({ received: true });
-    } catch (error: unknown) {
-      console.error("Webhook error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      res.status(400).send(`Webhook Error: ${errorMessage}`);
     }
   });
 
