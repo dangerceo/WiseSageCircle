@@ -1,24 +1,26 @@
-import { createContext, ReactNode, useContext, useState, useEffect } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { Message, User } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { sages } from "@/lib/sages";
-import { generateSageResponse } from "@/lib/gemini";
 
 type ChatContextType = {
-  user: LocalUser;
-  messages: LocalMessage[];
+  user: SimplifiedUser;
+  messages: SimplifiedMessage[];
   sendMessage: (content: string, sages: string[]) => Promise<void>;
   isLoading: boolean;
   isSending: boolean;
 };
 
-type LocalUser = {
+// Simplified types for client-side use
+type SimplifiedUser = {
+  id: number;
   sessionId: string;
   credits: number;
 };
 
-type LocalMessage = {
+type SimplifiedMessage = {
   id: number;
   content: string;
   sages: string[];
@@ -38,7 +40,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return newId;
   });
 
-  const [messages, setMessages] = useState<LocalMessage[]>(() => {
+  const [messages, setMessages] = useState<SimplifiedMessage[]>(() => {
     const stored = localStorage.getItem(`messages_${sessionId}`);
     return stored ? JSON.parse(stored) : [];
   });
@@ -65,7 +67,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
       setCredits(prev => prev - 1);
 
-      const newMessage: LocalMessage = {
+      const newMessage: SimplifiedMessage = {
         id: Date.now(),
         content,
         sages: selectedSages,
@@ -75,33 +77,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       setMessages(prev => [...prev, newMessage]);
 
-      try {
-        const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
-        const responses: Record<string, string> = {};
+      const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
+      const response = await fetch('/_api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content,
+          selectedSages: selectedSageDetails,
+          messageId: newMessage.id,
+        }),
+      });
 
-        // Generate responses from each sage
-        for (const sage of selectedSageDetails) {
-          const response = await generateSageResponse(content, sage);
-          responses[sage.id] = response.text;
-        }
-
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === newMessage.id
-              ? { ...msg, responses }
-              : msg
-          )
-        );
-
-        return newMessage;
-      } catch (error) {
-        // Remove the message on error and refund credit
-        setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
-        setCredits(prev => prev + 1);
-        throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate responses');
       }
+
+      const { responses } = await response.json();
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === newMessage.id
+            ? { ...msg, responses }
+            : msg
+        )
+      );
+
+      return newMessage;
     },
     onError: (error: Error) => {
+      setCredits(prev => prev + 1);
       toast({
         title: "The sages couldn't process your question",
         description: error.message,
@@ -114,7 +121,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(`messages_${sessionId}`, JSON.stringify(messages));
   }, [messages, sessionId]);
 
-  const user: LocalUser = {
+  const user: SimplifiedUser = {
+    id: 1,
     sessionId,
     credits
   };
