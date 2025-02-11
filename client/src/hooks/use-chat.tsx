@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { sages } from "@/lib/sages";
+import { apiRequest } from "@/lib/queryClient";
 
 type ChatContextType = {
   user: LocalUser;
@@ -74,35 +75,31 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       setMessages(prev => [...prev, newMessage]);
 
-      const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
-      const response = await fetch('/_api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content,
-          selectedSages: selectedSageDetails,
-          messageId: newMessage.id,
-        }),
-      });
+      try {
+        const response = await apiRequest("POST", "/api/messages", {
+          sessionId,
+          message: {
+            content,
+            sages: selectedSages
+          }
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate responses');
+        const { responses } = await response.json();
+
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === newMessage.id
+              ? { ...msg, responses }
+              : msg
+          )
+        );
+
+        return newMessage;
+      } catch (error) {
+        // Remove the message on error
+        setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+        throw error;
       }
-
-      const { responses } = await response.json();
-
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === newMessage.id
-            ? { ...msg, responses }
-            : msg
-        )
-      );
-
-      return newMessage;
     },
     onError: (error: Error) => {
       setCredits(prev => prev + 1);
