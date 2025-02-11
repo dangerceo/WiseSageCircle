@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useContext, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -90,27 +90,41 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             Keep the response respectful, focused, and within safe content guidelines.
           `.trim();
 
-          const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_GEMINI_API_KEY}`
-            },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{
-                  text: prompt
+          try {
+            console.log(`Generating response for ${sage.name}...`);
+            const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_GEMINI_API_KEY}`
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: prompt
+                  }]
                 }]
-              }]
-            })
-          });
+              })
+            });
 
-          if (!response.ok) {
-            throw new Error('Failed to generate response');
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error('Gemini API error:', errorData);
+              throw new Error(errorData.error?.message || 'Failed to generate response');
+            }
+
+            const result = await response.json();
+            console.log('Gemini API response:', result);
+
+            if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+              throw new Error('Invalid response format from Gemini API');
+            }
+
+            responses[sage.id] = result.candidates[0].content.parts[0].text;
+          } catch (error) {
+            console.error(`Error generating response for ${sage.name}:`, error);
+            throw error;
           }
-
-          const result = await response.json();
-          responses[sage.id] = result.candidates[0].content.parts[0].text;
         }
 
         setMessages(prev =>
