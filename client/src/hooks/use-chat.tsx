@@ -65,8 +65,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (credits <= 0) {
         throw new Error("No credits remaining");
       }
-      setCredits(prev => prev - 1);
 
+      // Create new message with initial empty responses
       const newMessage: SimplifiedMessage = {
         id: Date.now(),
         content,
@@ -77,38 +77,48 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       setMessages(prev => [...prev, newMessage]);
 
-      const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
-      const response = await fetch('/_api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content,
-          selectedSages: selectedSageDetails,
-          messageId: newMessage.id,
-        }),
-      });
+      try {
+        // Deduct credits before making the API call
+        setCredits(prev => prev - 1);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate responses');
+        const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
+        const response = await fetch('/_api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content,
+            selectedSages: selectedSageDetails,
+            messageId: newMessage.id,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate responses');
+        }
+
+        const { responses } = await response.json();
+
+        // Update message with received responses
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === newMessage.id
+              ? { ...msg, responses }
+              : msg
+          )
+        );
+
+        return newMessage;
+      } catch (error) {
+        // Remove the message and refund credits on error
+        setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+        setCredits(prev => prev + 1);
+        throw error;
       }
-
-      const { responses } = await response.json();
-
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === newMessage.id
-            ? { ...msg, responses }
-            : msg
-        )
-      );
-
-      return newMessage;
     },
     onError: (error: Error) => {
-      setCredits(prev => prev + 1);
       toast({
         title: "The sages couldn't process your question",
         description: error.message,
