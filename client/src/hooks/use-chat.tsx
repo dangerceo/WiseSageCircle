@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { sages } from "@/lib/sages";
+import { generateSageResponse } from "@/lib/gemini";
 
 type ChatContextType = {
   user: LocalUser;
@@ -80,51 +81,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
         // Generate responses from each sage
         for (const sage of selectedSageDetails) {
-          const prompt = `
-            You are ${sage.name}, ${sage.title}.
-            ${sage.prompt}
-
-            Seeker's question: ${content}
-
-            Please provide wisdom and guidance according to your spiritual tradition and perspective.
-            Keep the response respectful, focused, and within safe content guidelines.
-          `.trim();
-
-          try {
-            console.log(`Generating response for ${sage.name}...`);
-            const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_GEMINI_API_KEY}`
-              },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{
-                    text: prompt
-                  }]
-                }]
-              })
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error('Gemini API error:', errorData);
-              throw new Error(errorData.error?.message || 'Failed to generate response');
-            }
-
-            const result = await response.json();
-            console.log('Gemini API response:', result);
-
-            if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-              throw new Error('Invalid response format from Gemini API');
-            }
-
-            responses[sage.id] = result.candidates[0].content.parts[0].text;
-          } catch (error) {
-            console.error(`Error generating response for ${sage.name}:`, error);
-            throw error;
-          }
+          const response = await generateSageResponse(content, sage);
+          responses[sage.id] = response.text;
         }
 
         setMessages(prev =>
