@@ -1,26 +1,23 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { Message, User } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { sages } from "@/lib/sages";
 
 type ChatContextType = {
-  user: SimplifiedUser;
-  messages: SimplifiedMessage[];
+  user: LocalUser;
+  messages: LocalMessage[];
   sendMessage: (content: string, sages: string[]) => Promise<void>;
   isLoading: boolean;
   isSending: boolean;
 };
 
-// Simplified types for client-side use
-type SimplifiedUser = {
-  id: number;
+type LocalUser = {
   sessionId: string;
   credits: number;
 };
 
-type SimplifiedMessage = {
+type LocalMessage = {
   id: number;
   content: string;
   sages: string[];
@@ -40,7 +37,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return newId;
   });
 
-  const [messages, setMessages] = useState<SimplifiedMessage[]>(() => {
+  const [messages, setMessages] = useState<LocalMessage[]>(() => {
     const stored = localStorage.getItem(`messages_${sessionId}`);
     return stored ? JSON.parse(stored) : [];
   });
@@ -67,7 +64,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
       setCredits(prev => prev - 1);
 
-      const newMessage: SimplifiedMessage = {
+      const newMessage: LocalMessage = {
         id: Date.now(),
         content,
         sages: selectedSages,
@@ -121,8 +118,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(`messages_${sessionId}`, JSON.stringify(messages));
   }, [messages, sessionId]);
 
-  const user: SimplifiedUser = {
-    id: 1,
+  const user: LocalUser = {
     sessionId,
     credits
   };
