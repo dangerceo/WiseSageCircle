@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generateSageResponses } from "./lib/gemini";
 import { stripe, CREDIT_PRODUCTS } from "./lib/stripe";
 import * as express from 'express';
+import type Stripe from 'stripe';
 
 export function registerRoutes(app: Express): Server {
   app.post("/api/session", async (req, res) => {
@@ -99,49 +100,21 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/chat", async (req, res) => {
     try {
-      const user = await storage.getUser(req.body.sessionId);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid session" });
+      const { content, selectedSages, messageId } = req.body;
+
+      if (!content || !selectedSages || !messageId) {
+        return res.status(400).json({ error: "Missing required fields" });
       }
 
-      if (user.credits <= 0) {
-        return res.status(403).json({ message: "No credits remaining" });
-      }
-
-      const messageData = insertMessageSchema.parse(req.body.message);
-      const message = await storage.createMessage(user.id, {
-        ...messageData,
-        responses: {}
+      const responses = await generateSageResponses(content, selectedSages, null, messageId);
+      res.json({ responses, messageId });
+    } catch (error: any) {
+      console.error("Chat error:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to generate responses" 
       });
-
-      const selectedSages = sages.filter(sage =>
-        (messageData.sages as string[]).includes(sage.id)
-      );
-
-      // Initial empty responses will be updated via WebSocket
-      res.json(message);
-
-      // Update credits immediately
-      await storage.updateUserCredits(user.id, user.credits - 1);
-
-      // Generate responses asynchronously
-      const responses = await generateSageResponses(
-        messageData.content,
-        selectedSages,
-        null,
-        message.id
-      );
-      await storage.updateMessageResponses(message.id, responses);
-    } catch (error: unknown) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json(error);
-      } else {
-        console.error("Error handling message:", error);
-        const errorMessage = error instanceof Error ? error.message : "Internal server error";
-        res.status(500).json({ message: errorMessage });
-      }
     }
   });
 
