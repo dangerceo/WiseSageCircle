@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { sages } from "@/lib/sages";
-import { apiRequest } from "@/lib/queryClient";
 
 type ChatContextType = {
   user: LocalUser;
@@ -76,15 +75,43 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setMessages(prev => [...prev, newMessage]);
 
       try {
-        const response = await apiRequest("POST", "/api/messages", {
-          sessionId,
-          message: {
-            content,
-            sages: selectedSages
-          }
-        });
+        const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
+        const responses: Record<string, string> = {};
 
-        const { responses } = await response.json();
+        // Generate responses from each sage
+        for (const sage of selectedSageDetails) {
+          const prompt = `
+            You are ${sage.name}, ${sage.title}.
+            ${sage.prompt}
+
+            Seeker's question: ${content}
+
+            Please provide wisdom and guidance according to your spiritual tradition and perspective.
+            Keep the response respectful, focused, and within safe content guidelines.
+          `.trim();
+
+          const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_GEMINI_API_KEY}`
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: prompt
+                }]
+              }]
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to generate response');
+          }
+
+          const result = await response.json();
+          responses[sage.id] = result.candidates[0].content.parts[0].text;
+        }
 
         setMessages(prev =>
           prev.map(msg =>
@@ -96,13 +123,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
         return newMessage;
       } catch (error) {
-        // Remove the message on error
+        // Remove the message on error and refund credit
         setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+        setCredits(prev => prev + 1);
         throw error;
       }
     },
     onError: (error: Error) => {
-      setCredits(prev => prev + 1);
       toast({
         title: "The sages couldn't process your question",
         description: error.message,

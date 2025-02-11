@@ -1,4 +1,1 @@
-export async function onRequest({ request, waitUntil, next }) {
-  // Serve static files and handle client-side routing
-  return next();
-}
+// This file is no longer needed as we're handling Gemini API calls directly from the frontend
