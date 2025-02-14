@@ -6,6 +6,9 @@ import { insertUserSchema, sages } from "@shared/schema";
 import { z } from "zod";
 import { generateSageResponses } from "./lib/gemini";
 
+// Track active WebSocket connections by session ID
+const activeConnections: Map<string, WebSocket> = new Map();
+
 export function registerRoutes(app: Express): Server {
   app.post("/api/session", async (req, res) => {
     try {
@@ -77,12 +80,24 @@ export function registerRoutes(app: Express): Server {
 
   wss.on('connection', (ws) => {
     console.log('WebSocket client connected');
+    let userSessionId: string | null = null;
 
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
         if (message.type === 'start_chat') {
           const { sessionId, messageId, content, selectedSages } = message;
+          userSessionId = sessionId;
+
+          // Store the connection with the session ID
+          if (userSessionId) {
+            // Close any existing connection for this session
+            const existingConnection = activeConnections.get(userSessionId);
+            if (existingConnection && existingConnection !== ws) {
+              existingConnection.close();
+            }
+            activeConnections.set(userSessionId, ws);
+          }
 
           const user = await storage.getUser(sessionId);
           if (!user) {
@@ -96,6 +111,15 @@ export function registerRoutes(app: Express): Server {
       } catch (error) {
         console.error('WebSocket error:', error);
         ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+      }
+    });
+
+    ws.on('close', () => {
+      if (userSessionId) {
+        // Remove the connection when it's closed
+        if (activeConnections.get(userSessionId) === ws) {
+          activeConnections.delete(userSessionId);
+        }
       }
     });
   });

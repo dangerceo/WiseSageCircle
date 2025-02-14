@@ -47,19 +47,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   });
 
   const [credits, setCredits] = useState(() => {
-    const stored = localStorage.getItem("credits");
+    const stored = localStorage.getItem(`credits_${sessionId}`);
     return stored ? parseInt(stored, 10) : 10;
   });
 
   useEffect(() => {
-    localStorage.setItem("credits", credits.toString());
-  }, [credits]);
+    localStorage.setItem(`credits_${sessionId}`, credits.toString());
+  }, [credits, sessionId]);
+
+  useEffect(() => {
+    localStorage.setItem(`messages_${sessionId}`, JSON.stringify(messages));
+  }, [messages, sessionId]);
 
   const resetChat = () => {
     setMessages([]);
     setCredits(25);
     localStorage.removeItem(`messages_${sessionId}`);
-    localStorage.setItem("credits", "25");
+    localStorage.setItem(`credits_${sessionId}`, "25");
     toast({
       title: "Chat Reset",
       description: "Your chat history has been cleared and credits have been reset to 25.",
@@ -182,10 +186,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
     },
   });
-
-  useEffect(() => {
-    localStorage.setItem(`messages_${sessionId}`, JSON.stringify(messages));
-  }, [messages, sessionId]);
 
   const user: SimplifiedUser = {
     id: 1,
