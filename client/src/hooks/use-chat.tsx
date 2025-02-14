@@ -81,7 +81,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         // Deduct credits before making the API call
         setCredits(prev => prev - 1);
 
-        const selectedSageDetails = sages.filter(sage => selectedSages.includes(sage.id));
         const response = await fetch('/_api/chat', {
           method: 'POST',
           headers: {
@@ -90,23 +89,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           },
           body: JSON.stringify({
             content,
-            selectedSages: selectedSageDetails,
-            messageId: newMessage.id,
+            selectedSages,
+            messageId: newMessage.id
           }),
         });
 
         if (!response.ok) {
-          throw new Error(await response.text());
+          const errorText = await response.text();
+          console.error("API Error:", errorText);
+          throw new Error(errorText || "Failed to generate responses");
         }
 
         const data = await response.json();
-        const { responses } = data;
+        if (!data.responses) {
+          throw new Error("Invalid response format from server");
+        }
 
         // Update message with received responses
         setMessages(prev =>
           prev.map(msg =>
             msg.id === newMessage.id
-              ? { ...msg, responses }
+              ? { ...msg, responses: data.responses }
               : msg
           )
         );
