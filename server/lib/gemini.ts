@@ -40,13 +40,12 @@ async function generateSingleSageResponse(
           sageId: sage.id,
           chunk: text
         }));
-        // Add a small delay between chunks to simulate natural typing
-        await new Promise(resolve => setTimeout(resolve, 30));
       }
       ws.send(JSON.stringify({
         type: 'complete',
         messageId,
-        sageId: sage.id
+        sageId: sage.id,
+        response: fullResponse
       }));
     } else {
       for await (const chunk of result.stream) {
