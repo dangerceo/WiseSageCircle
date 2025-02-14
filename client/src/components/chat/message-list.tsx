@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { sages } from "@/lib/sages";
 import TypingIndicator from "./typing-indicator";
 import { useEffect, useRef } from "react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function MessageList() {
   const { messages } = useChat();
@@ -35,8 +37,6 @@ export default function MessageList() {
               const sage = sages.find(s => s.id === sageId);
               if (!sage) return null;
 
-              // Only show typing indicator for the most recent message
-              // and only if we haven't received a response yet
               const isLatestMessage = message.id === messages[messages.length - 1]?.id;
               const isTyping = isLatestMessage && (!message.responses || message.responses[sageId] === undefined || message.responses[sageId] === '');
 
@@ -51,14 +51,32 @@ export default function MessageList() {
                   ) : (
                     <Card className="flex-1">
                       <CardContent className="p-4">
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-2">
                           <div className="text-sm font-medium text-primary">
                             {sage.name}
                             <span className="text-xs text-muted-foreground ml-2">
                               {sage.title}
                             </span>
                           </div>
-                          <p className="text-sm italic">{message.responses[sageId]}</p>
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => <p className="mb-2">{children}</p>,
+                                h1: ({ children }) => <h1 className="text-xl font-bold mb-2">{children}</h1>,
+                                h2: ({ children }) => <h2 className="text-lg font-bold mb-2">{children}</h2>,
+                                ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                                blockquote: ({ children }) => (
+                                  <blockquote className="border-l-4 border-primary/20 pl-4 italic mb-2">
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {message.responses[sageId]}
+                            </ReactMarkdown>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
