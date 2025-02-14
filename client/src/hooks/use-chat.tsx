@@ -97,8 +97,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       try {
         // Set up WebSocket connection for streaming responses
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.hostname}:5000/ws`;
-        console.log('Connecting to WebSocket:', wsUrl); // Debug log
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log('Connecting to WebSocket:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
         let completedSages = new Set<string>();
@@ -112,7 +112,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           }, 5000);
 
           socket.onopen = () => {
-            console.log('WebSocket connected successfully'); // Debug log
+            console.log('WebSocket connected successfully');
             clearTimeout(connectionTimeout);
 
             socket.send(JSON.stringify({
@@ -126,7 +126,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log('Received WebSocket message:', data); // Debug log
+            console.log('Received WebSocket message:', data);
 
             if (data.type === 'stream') {
               setMessages(prev =>
@@ -177,7 +177,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           };
 
           socket.onclose = (event) => {
-            console.log('WebSocket closed:', event.code, event.reason); // Debug log
+            console.log('WebSocket closed:', event.code, event.reason);
             clearTimeout(connectionTimeout);
             if (!completedSages.size) {
               reject(new Error('Connection closed before receiving any responses'));
