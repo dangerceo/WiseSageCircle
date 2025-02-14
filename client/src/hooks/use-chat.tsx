@@ -86,6 +86,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
           body: JSON.stringify({
             content,
@@ -95,11 +96,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to generate responses');
+          throw new Error(await response.text());
         }
 
-        const { responses } = await response.json();
+        const data = await response.json();
+        const { responses } = data;
 
         // Update message with received responses
         setMessages(prev =>
