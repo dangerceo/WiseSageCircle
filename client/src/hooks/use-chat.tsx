@@ -76,45 +76,70 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       };
 
       setMessages(prev => [...prev, newMessage]);
+      setCredits(prev => prev - 1);
 
       try {
-        // Deduct credits before making the API call
-        setCredits(prev => prev - 1);
+        // Set up WebSocket connection for streaming responses
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const socket = new WebSocket(wsUrl);
 
-        const response = await fetch('/_api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({
-            content,
-            selectedSages,
-            messageId: newMessage.id
-          }),
+        return new Promise<void>((resolve, reject) => {
+          socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'stream') {
+              // Update message with streamed chunk
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === newMessage.id
+                    ? {
+                        ...msg,
+                        responses: {
+                          ...msg.responses,
+                          [data.sageId]: (msg.responses[data.sageId] || '') + data.chunk
+                        }
+                      }
+                    : msg
+                )
+              );
+            } else if (data.type === 'error') {
+              reject(new Error(data.message));
+            } else if (data.type === 'complete') {
+              // Ensure we have the complete response
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === newMessage.id
+                    ? {
+                        ...msg,
+                        responses: {
+                          ...msg.responses,
+                          [data.sageId]: data.response
+                        }
+                      }
+                    : msg
+                )
+              );
+            }
+          };
+
+          socket.onopen = () => {
+            socket.send(JSON.stringify({
+              type: 'start_chat',
+              content,
+              selectedSages,
+              messageId: newMessage.id,
+              sessionId
+            }));
+          };
+
+          socket.onerror = (error) => {
+            reject(error);
+          };
+
+          socket.onclose = () => {
+            resolve();
+          };
         });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API Error:", errorText);
-          throw new Error(errorText || "Failed to generate responses");
-        }
-
-        const data = await response.json();
-        if (!data.responses) {
-          throw new Error("Invalid response format from server");
-        }
-
-        // Update message with received responses
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === newMessage.id
-              ? { ...msg, responses: data.responses }
-              : msg
-          )
-        );
-
-        return newMessage;
       } catch (error) {
         // Remove the message and refund credits on error
         setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
