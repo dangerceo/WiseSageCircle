@@ -83,6 +83,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         const socket = new WebSocket(wsUrl);
+        let completedSages = new Set<string>();
 
         return new Promise<void>((resolve, reject) => {
           socket.onmessage = (event) => {
@@ -103,9 +104,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 )
               );
             } else if (data.type === 'error') {
+              socket.close();
               reject(new Error(data.message));
             } else if (data.type === 'complete') {
-              // Ensure we have the complete response
+              completedSages.add(data.sageId);
+
+              // Update with complete response
               setMessages(prev =>
                 prev.map(msg =>
                   msg.id === newMessage.id
@@ -119,6 +123,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                     : msg
                 )
               );
+
+              // If all selected sages have completed, close the connection
+              if (completedSages.size === selectedSages.length) {
+                socket.close();
+                resolve();
+              }
             }
           };
 
@@ -133,12 +143,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           };
 
           socket.onerror = (error) => {
+            socket.close();
             reject(error);
           };
 
-          socket.onclose = () => {
-            resolve();
-          };
+          // Add timeout to prevent hanging connections
+          setTimeout(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.close();
+              reject(new Error("Connection timed out"));
+            }
+          }, 30000); // 30 second timeout
         });
       } catch (error) {
         // Remove the message and refund credits on error

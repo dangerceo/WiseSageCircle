@@ -26,7 +26,7 @@ async function generateSingleSageResponse(
       Limit the response to 2-3 paragraphs maximum.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite-preview-02-05" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContentStream(prompt);
     let fullResponse = '';
 
@@ -41,12 +41,16 @@ async function generateSingleSageResponse(
           chunk: text
         }));
       }
-      ws.send(JSON.stringify({
-        type: 'complete',
-        messageId,
-        sageId: sage.id,
-        response: fullResponse
-      }));
+
+      // Send complete message with full response after stream ends
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'complete',
+          messageId,
+          sageId: sage.id,
+          response: fullResponse
+        }));
+      }
     } else {
       for await (const chunk of result.stream) {
         fullResponse += chunk.text();
