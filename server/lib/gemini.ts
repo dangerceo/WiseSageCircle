@@ -23,9 +23,10 @@ async function generateSingleSageResponse(
 
       Please provide wisdom and guidance according to your spiritual tradition and perspective.
       Keep the response respectful, focused, and within safe content guidelines.
+      Limit the response to 2-3 paragraphs maximum.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision-flash-8b-1.5" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const result = await model.generateContentStream(prompt);
     let fullResponse = '';
 
