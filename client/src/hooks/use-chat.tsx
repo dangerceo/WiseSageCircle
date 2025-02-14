@@ -11,6 +11,7 @@ type ChatContextType = {
   sendMessage: (content: string, sages: string[]) => Promise<void>;
   isLoading: boolean;
   isSending: boolean;
+  resetChat: () => void;
 };
 
 // Simplified types for client-side use
@@ -53,6 +54,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem("credits", credits.toString());
   }, [credits]);
+
+  const resetChat = () => {
+    setMessages([]);
+    setCredits(25);
+    localStorage.removeItem(`messages_${sessionId}`);
+    localStorage.setItem("credits", "25");
+    toast({
+      title: "Chat Reset",
+      description: "Your chat history has been cleared and credits have been reset to 25.",
+    });
+  };
 
   const messageMutation = useMutation({
     mutationFn: async ({
@@ -191,6 +203,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         },
         isLoading: false,
         isSending: messageMutation.isPending,
+        resetChat
       }}
     >
       {children}

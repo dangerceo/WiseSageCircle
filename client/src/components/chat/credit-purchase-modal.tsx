@@ -9,10 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useChat } from "@/hooks/use-chat";
 import { Loader2, Check, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const CREDIT_PACKAGES = [
   {
@@ -60,22 +58,16 @@ export default function CreditPurchaseModal({
   onOpenChange,
 }: CreditPurchaseModalProps) {
   const [loading, setLoading] = useState<string | null>(null);
-  const { toast } = useToast();
+  const { resetChat } = useChat();
 
   const handlePurchase = async (packageId: string) => {
     try {
       setLoading(packageId);
-      const response = await apiRequest("POST", "/api/create-checkout-session", {
-        priceId: packageId,
-      });
-      const { url } = await response.json();
-      window.location.href = url;
+      // For now, just reset credits and chat history
+      resetChat();
+      onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error resetting chat:", error);
     } finally {
       setLoading(null);
     }
@@ -88,17 +80,14 @@ export default function CreditPurchaseModal({
           <DialogHeader className="mb-6">
             <DialogTitle className="text-2xl text-center">Choose Your Spiritual Journey</DialogTitle>
             <DialogDescription className="text-center text-lg">
-              Select a credit package to continue your path to enlightenment
+              Select a package to continue your path to enlightenment (Demo Mode: All packages will reset credits to 25)
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {CREDIT_PACKAGES.map((pkg) => (
               <Card
                 key={pkg.id}
-                className={cn(
-                  "relative",
-                  pkg.popular && "border-primary shadow-lg"
-                )}
+                className={`relative ${pkg.popular ? "border-primary shadow-lg" : ""}`}
               >
                 {pkg.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -139,7 +128,7 @@ export default function CreditPurchaseModal({
                     ) : (
                       <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Get Started
+                    Get Started (Demo)
                   </Button>
                 </CardFooter>
               </Card>
