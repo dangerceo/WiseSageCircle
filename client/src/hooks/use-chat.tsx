@@ -97,7 +97,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       try {
         // Set up WebSocket connection for streaming responses
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const port = window.location.port || "5000"; // Use 5000 as default port
+        const wsUrl = `${protocol}//${window.location.hostname}:${port}/ws`;
         const socket = new WebSocket(wsUrl);
         let completedSages = new Set<string>();
 
@@ -159,8 +160,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           };
 
           socket.onerror = (error) => {
+            console.error('WebSocket connection error:', error);
             socket.close();
-            reject(error);
+            reject(new Error('Failed to establish WebSocket connection'));
           };
 
           // Add timeout to prevent hanging connections
