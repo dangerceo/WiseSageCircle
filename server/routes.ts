@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertMessageSchema, sages } from "@shared/schema";
+import { insertUserSchema, sages } from "@shared/schema";
 import { z } from "zod";
 import { generateSageResponses } from "./lib/gemini";
 
@@ -27,7 +27,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/chat", async (req, res) => {
+  app.post("/_api/chat", async (req, res) => {
     try {
       const { content, selectedSages, messageId } = req.body;
 
@@ -35,8 +35,19 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const responses = await generateSageResponses(content, selectedSages, null, messageId);
-      res.json({ responses, messageId });
+      // Filter sages based on selected IDs
+      const selectedSageObjects = sages.filter(sage => selectedSages.includes(sage.id));
+
+      if (selectedSageObjects.length === 0) {
+        return res.status(400).json({ error: "No valid sages selected" });
+      }
+
+      const responses = await generateSageResponses(content, selectedSageObjects, null, messageId);
+
+      res.json({ 
+        responses, 
+        messageId 
+      });
     } catch (error: any) {
       console.error("Chat error:", error);
       res.status(500).json({ 
