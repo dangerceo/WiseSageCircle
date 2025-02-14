@@ -25,30 +25,35 @@ async function generateSingleSageResponse(
       Keep the response respectful, focused, and within safe content guidelines.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision-flash-8b-1.5" });
+    const result = await model.generateContentStream(prompt);
+    let fullResponse = '';
 
     if (ws?.readyState === WebSocket.OPEN) {
-      const chunks = response.text().match(/.{1,20}|.+$/g) || [];
-      for (const chunk of chunks) {
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        fullResponse += text;
         ws.send(JSON.stringify({
           type: 'stream',
           messageId,
           sageId: sage.id,
-          chunk
+          chunk: text
         }));
-        // Add a small delay between chunks to simulate typing
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Add a small delay between chunks to simulate natural typing
+        await new Promise(resolve => setTimeout(resolve, 30));
       }
       ws.send(JSON.stringify({
         type: 'complete',
         messageId,
         sageId: sage.id
       }));
+    } else {
+      for await (const chunk of result.stream) {
+        fullResponse += chunk.text();
+      }
     }
 
-    return response.text();
+    return fullResponse;
   } catch (error: any) {
     console.error(`Error generating response for ${sage.name}:`, error);
     if (error.message?.includes("SAFETY")) {
