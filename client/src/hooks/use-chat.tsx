@@ -97,16 +97,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       try {
         // Set up WebSocket connection for streaming responses
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const port = window.location.port || "5000"; // Use 5000 as default port
-        const wsUrl = `${protocol}//${window.location.hostname}:${port}/ws`;
+        const wsUrl = `${protocol}//${window.location.hostname}:5000/ws`;
+        console.log('Connecting to WebSocket:', wsUrl); // Debug log
+
         const socket = new WebSocket(wsUrl);
         let completedSages = new Set<string>();
 
         return new Promise<void>((resolve, reject) => {
+          let connectionTimeout = setTimeout(() => {
+            if (socket.readyState !== WebSocket.OPEN) {
+              socket.close();
+              reject(new Error("WebSocket connection timeout"));
+            }
+          }, 5000);
+
+          socket.onopen = () => {
+            console.log('WebSocket connected successfully'); // Debug log
+            clearTimeout(connectionTimeout);
+
+            socket.send(JSON.stringify({
+              type: 'start_chat',
+              content,
+              selectedSages,
+              messageId: newMessage.id,
+              sessionId
+            }));
+          };
+
           socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log('Received WebSocket message:', data); // Debug log
+
             if (data.type === 'stream') {
-              // Update message with streamed chunk
               setMessages(prev =>
                 prev.map(msg =>
                   msg.id === newMessage.id
@@ -126,7 +148,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             } else if (data.type === 'complete') {
               completedSages.add(data.sageId);
 
-              // Update with complete response
               setMessages(prev =>
                 prev.map(msg =>
                   msg.id === newMessage.id
@@ -141,7 +162,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 )
               );
 
-              // If all selected sages have completed, close the connection
               if (completedSages.size === selectedSages.length) {
                 socket.close();
                 resolve();
@@ -149,29 +169,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             }
           };
 
-          socket.onopen = () => {
-            socket.send(JSON.stringify({
-              type: 'start_chat',
-              content,
-              selectedSages,
-              messageId: newMessage.id,
-              sessionId
-            }));
-          };
-
           socket.onerror = (error) => {
-            console.error('WebSocket connection error:', error);
+            console.error('WebSocket error:', error);
+            clearTimeout(connectionTimeout);
             socket.close();
             reject(new Error('Failed to establish WebSocket connection'));
           };
 
-          // Add timeout to prevent hanging connections
-          setTimeout(() => {
-            if (socket.readyState === WebSocket.OPEN) {
-              socket.close();
-              reject(new Error("Connection timed out"));
+          socket.onclose = (event) => {
+            console.log('WebSocket closed:', event.code, event.reason); // Debug log
+            clearTimeout(connectionTimeout);
+            if (!completedSages.size) {
+              reject(new Error('Connection closed before receiving any responses'));
             }
-          }, 30000); // 30 second timeout
+          };
         });
       } catch (error) {
         // Remove the message and refund credits on error

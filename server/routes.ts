@@ -10,6 +10,17 @@ import { generateSageResponses } from "./lib/gemini";
 const activeConnections: Map<string, WebSocket> = new Map();
 
 export function registerRoutes(app: Express): Server {
+  const httpServer = createServer(app);
+
+  // Set up WebSocket server with explicit path
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws',
+    // Allow connections from any origin
+    verifyClient: () => true
+  });
+
+  // Regular HTTP routes
   app.post("/api/session", async (req, res) => {
     try {
       const sessionId = req.body.sessionId;
@@ -73,11 +84,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  const httpServer = createServer(app);
-
-  // Set up WebSocket server
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-
+  // WebSocket connection handling
   wss.on('connection', (ws) => {
     console.log('WebSocket client connected');
     let userSessionId: string | null = null;
@@ -85,6 +92,8 @@ export function registerRoutes(app: Express): Server {
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
+        console.log('Received WebSocket message:', message); // Debug log
+
         if (message.type === 'start_chat') {
           const { sessionId, messageId, content, selectedSages } = message;
           userSessionId = sessionId;
@@ -99,28 +108,35 @@ export function registerRoutes(app: Express): Server {
             activeConnections.set(userSessionId, ws);
           }
 
-          const user = await storage.getUser(sessionId);
-          if (!user) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid session' }));
-            return;
-          }
-
+          // Filter sages based on selected IDs
           const filteredSages = sages.filter(sage => selectedSages.includes(sage.id));
-          await generateSageResponses(content, filteredSages, ws, messageId);
+          console.log('Starting chat with sages:', filteredSages.map(s => s.name)); // Debug log
+
+          try {
+            await generateSageResponses(content, filteredSages, ws, messageId);
+          } catch (error) {
+            console.error('Error generating responses:', error);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: error instanceof Error ? error.message : 'Failed to generate responses' 
+            }));
+          }
         }
       } catch (error) {
-        console.error('WebSocket error:', error);
-        ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+        console.error('WebSocket message handling error:', error);
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+        }
       }
     });
 
     ws.on('close', () => {
       if (userSessionId) {
-        // Remove the connection when it's closed
         if (activeConnections.get(userSessionId) === ws) {
           activeConnections.delete(userSessionId);
         }
       }
+      console.log('WebSocket client disconnected');
     });
   });
 
