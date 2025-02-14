@@ -26,7 +26,7 @@ async function generateSingleSageResponse(
       Limit the response to 2-3 paragraphs maximum.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContentStream(prompt);
     let fullResponse = '';
 
