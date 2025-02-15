@@ -1,6 +1,14 @@
 import { ExecutionContext } from "@cloudflare/workers-types";
 
-export async function onRequest(context: ExecutionContext) {
+interface Env {
+  GEMINI_API_KEY: string;
+}
+
+export async function onRequest(context: { 
+  request: Request;
+  env: Env;
+  next: () => Promise<Response>;
+}) {
   // Add CORS headers for API routes
   const response = await context.next();
   if (context.request.url.includes('/_api')) {

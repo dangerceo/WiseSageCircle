@@ -1,5 +1,14 @@
+import { ExecutionContext } from "@cloudflare/workers-types";
+
+interface Env {
+  GEMINI_API_KEY: string;
+}
+
 // This will handle all non-API routes by serving the SPA
-export async function onRequest({ request, next }) {
+export async function onRequest({ request, next }: { 
+  request: Request; 
+  next: () => Promise<Response>;
+}) {
   try {
     // Try the original request first
     const response = await next();

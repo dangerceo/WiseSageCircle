@@ -1,6 +1,27 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ExecutionContext } from "@cloudflare/workers-types";
 
-export async function onRequest({ request, env }) {
+interface Env {
+  GEMINI_API_KEY: string;
+}
+
+interface Sage {
+  id: string;
+  name: string;
+  title: string;
+  prompt: string;
+}
+
+interface ChatRequest {
+  content: string;
+  selectedSages: Sage[];
+  messageId: string;
+}
+
+export async function onRequest({ request, env }: { 
+  request: Request; 
+  env: Env;
+}) {
   try {
     // Handle preflight requests for CORS
     if (request.method === "OPTIONS") {
@@ -20,7 +41,7 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    const { content, selectedSages, messageId } = await request.json();
+    const { content, selectedSages, messageId } = await request.json() as ChatRequest;
 
     if (!env.GEMINI_API_KEY) {
       return new Response(
@@ -35,7 +56,7 @@ export async function onRequest({ request, env }) {
     const responses: Record<string, string> = {};
 
     // Generate responses from each sage in parallel
-    await Promise.all(selectedSages.map(async (sage) => {
+    await Promise.all(selectedSages.map(async (sage: Sage) => {
       const prompt = `
         You are ${sage.name}, ${sage.title}.
         ${sage.prompt}
@@ -59,7 +80,6 @@ export async function onRequest({ request, env }) {
         if (error.message?.includes("SAFETY")) {
           throw new Error("Your question touches on sensitive topics. Please rephrase it focusing on spiritual guidance and wisdom.");
         }
-        // Log the error but don't throw, allow other sages to respond
         responses[sage.id] = `${sage.name} is currently in deep meditation and unable to respond.`;
       }
     }));
