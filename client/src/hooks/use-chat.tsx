@@ -97,7 +97,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       try {
         // Set up WebSocket connection for streaming responses
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/_api/ws`;
         console.log('Connecting to WebSocket:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
