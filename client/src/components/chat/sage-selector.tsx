@@ -41,7 +41,7 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
             <Button
               key={sage.id}
               variant={selected.includes(sage.id) ? "default" : "outline"}
-              className="flex flex-col items-center gap-1 p-2 h-auto w-[80px] sm:w-[100px]"
+              className="flex flex-col items-center gap-2 p-2 h-auto w-[70px] sm:w-[90px]"
               onClick={() => toggleSage(sage.id)}
             >
               <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
@@ -49,8 +49,7 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
                 <AvatarFallback>{sage.name[0]}</AvatarFallback>
               </Avatar>
               <div className="text-center">
-                <div className="font-medium text-[10px] sm:text-xs truncate w-full">{sage.name}</div>
-                <div className="text-[8px] sm:text-[10px] text-muted-foreground line-clamp-1">{sage.title}</div>
+                <div className="font-medium text-xs sm:text-sm truncate w-full">{sage.name}</div>
               </div>
             </Button>
           ))}
