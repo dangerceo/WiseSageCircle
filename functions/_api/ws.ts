@@ -12,10 +12,44 @@ interface Sage {
   prompt: string;
 }
 
+// Define available sages
+const sages: Sage[] = [
+  {
+    id: "lao-tzu",
+    name: "Lao Tzu",
+    title: "Founder of Taoism",
+    prompt: "Respond with wisdom and paradox in the style of Lao Tzu, emphasizing simplicity and the Tao."
+  },
+  {
+    id: "shiva",
+    name: "Lord Shiva",
+    title: "The Destroyer & Transformer",
+    prompt: "Channel the wisdom of Shiva, focusing on transformation, meditation, and the dance of creation."
+  },
+  {
+    id: "jesus",
+    name: "Jesus Christ",
+    title: "The Light of the World",
+    prompt: "Speak with compassion and parables in the style of Jesus, emphasizing love and forgiveness."
+  },
+  {
+    id: "buddha",
+    name: "Buddha",
+    title: "The Enlightened One",
+    prompt: "Share wisdom in the style of Buddha, focusing on the middle way and liberation from suffering."
+  },
+  {
+    id: "rumi",
+    name: "Rumi",
+    title: "The Mystic Poet",
+    prompt: "Express wisdom through poetry and metaphor in the style of Rumi, emphasizing divine love."
+  }
+];
+
 interface WebSocketMessage {
   type: 'start_chat';
   content: string;
-  selectedSages: Sage[];
+  selectedSages: string[];  // Array of sage IDs
   messageId: number;
   sessionId: string;
 }
@@ -59,6 +93,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
     server.addEventListener("message", async (event) => {
       try {
         const message = JSON.parse(event.data as string) as WebSocketMessage;
+        console.log('Received message:', message);
         
         if (message.type !== 'start_chat') {
           server.send(JSON.stringify({ 
@@ -82,7 +117,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
         // Generate responses from each sage
-        await Promise.all(message.selectedSages.map(async (sage: Sage) => {
+        await Promise.all(message.selectedSages.map(async (sageId: string) => {
+          const sage = sages.find(s => s.id === sageId);
+          if (!sage) {
+            server.send(JSON.stringify({
+              type: 'error',
+              message: `Sage not found: ${sageId}`,
+              messageId: message.messageId
+            }));
+            return;
+          }
+
           const prompt = `
             You are ${sage.name}, ${sage.title}.
             ${sage.prompt}
@@ -95,12 +140,29 @@ export async function onRequest(context: { request: Request; env: Env }) {
           `.trim();
 
           try {
+            // Initialize empty response for this sage
+            server.send(JSON.stringify({
+              type: 'stream',
+              sageId: sage.id,
+              chunk: '',
+              messageId: message.messageId
+            }));
+
             const result = await model.generateContent(prompt);
             const response = result.response;
             if (!response.text()) {
               throw new Error("Empty response received");
             }
 
+            // Send the complete response
+            server.send(JSON.stringify({
+              type: 'stream',
+              sageId: sage.id,
+              chunk: response.text(),
+              messageId: message.messageId
+            }));
+
+            // Send completion message
             server.send(JSON.stringify({
               type: 'complete',
               sageId: sage.id,
@@ -109,6 +171,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
             }));
           } catch (error: any) {
             console.error(`Error generating response for ${sage.name}:`, error);
+            // Send error response
+            server.send(JSON.stringify({
+              type: 'stream',
+              sageId: sage.id,
+              chunk: `${sage.name} is currently in deep meditation and unable to respond.`,
+              messageId: message.messageId
+            }));
+            // Send completion message
             server.send(JSON.stringify({
               type: 'complete',
               sageId: sage.id,
