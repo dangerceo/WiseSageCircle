@@ -148,41 +148,46 @@ export async function onRequest(context: { request: Request; env: Env }) {
               messageId: message.messageId
             }));
 
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            if (!response.text()) {
-              throw new Error("Empty response received");
+            let fullResponse = '';
+            const result = await model.generateContentStream(prompt);
+            
+            for await (const chunk of result.stream) {
+              const chunkText = chunk.text();
+              fullResponse += chunkText;
+              
+              // Send each chunk as it arrives
+              server.send(JSON.stringify({
+                type: 'stream',
+                sageId: sage.id,
+                chunk: chunkText,
+                messageId: message.messageId
+              }));
             }
 
-            // Send the complete response
-            server.send(JSON.stringify({
-              type: 'stream',
-              sageId: sage.id,
-              chunk: response.text(),
-              messageId: message.messageId
-            }));
-
-            // Send completion message
+            // Send completion message with full response
             server.send(JSON.stringify({
               type: 'complete',
               sageId: sage.id,
-              response: response.text(),
+              response: fullResponse,
               messageId: message.messageId
             }));
           } catch (error: any) {
             console.error(`Error generating response for ${sage.name}:`, error);
+            const errorMessage = `${sage.name} is currently in deep meditation and unable to respond.`;
+            
             // Send error response
             server.send(JSON.stringify({
               type: 'stream',
               sageId: sage.id,
-              chunk: `${sage.name} is currently in deep meditation and unable to respond.`,
+              chunk: errorMessage,
               messageId: message.messageId
             }));
+            
             // Send completion message
             server.send(JSON.stringify({
               type: 'complete',
               sageId: sage.id,
-              response: `${sage.name} is currently in deep meditation and unable to respond.`,
+              response: errorMessage,
               messageId: message.messageId
             }));
           }
