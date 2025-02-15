@@ -12,6 +12,14 @@ interface Sage {
   prompt: string;
 }
 
+interface WebSocketMessage {
+  type: 'start_chat';
+  content: string;
+  selectedSages: Sage[];
+  messageId: number;
+  sessionId: string;
+}
+
 interface WebSocketPair {
   0: WebSocket;
   1: WebSocket;
@@ -33,7 +41,7 @@ export interface RequestWithEnv extends Request {
   env: Env;
 }
 
-export async function onRequest(context: { request: Request; env: Env; waitUntil: ExecutionContext['waitUntil'] }) {
+export async function onRequest(context: { request: Request; env: Env }) {
   try {
     // Check if the request is a WebSocket upgrade request
     if (context.request.headers.get("Upgrade") !== "websocket") {
@@ -50,13 +58,22 @@ export async function onRequest(context: { request: Request; env: Env; waitUntil
     // Set up message handler
     server.addEventListener("message", async (event) => {
       try {
-        const { content, selectedSages, messageId } = JSON.parse(event.data as string);
+        const message = JSON.parse(event.data as string) as WebSocketMessage;
+        
+        if (message.type !== 'start_chat') {
+          server.send(JSON.stringify({ 
+            type: 'error',
+            message: "Invalid message type",
+            messageId: message.messageId 
+          }));
+          return;
+        }
 
         if (!context.env.GEMINI_API_KEY) {
           server.send(JSON.stringify({ 
             type: 'error',
             message: "GEMINI_API_KEY not configured",
-            messageId 
+            messageId: message.messageId 
           }));
           return;
         }
@@ -64,13 +81,13 @@ export async function onRequest(context: { request: Request; env: Env; waitUntil
         const genAI = new GoogleGenerativeAI(context.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-        // Use waitUntil to ensure long-running operations complete
-        context.waitUntil(Promise.all(selectedSages.map(async (sage: Sage) => {
+        // Generate responses from each sage
+        await Promise.all(message.selectedSages.map(async (sage: Sage) => {
           const prompt = `
             You are ${sage.name}, ${sage.title}.
             ${sage.prompt}
 
-            Seeker's question: ${content}
+            Seeker's question: ${message.content}
 
             Please provide wisdom and guidance according to your spiritual tradition and perspective.
             Keep the response respectful, focused, and within safe content guidelines.
@@ -88,7 +105,7 @@ export async function onRequest(context: { request: Request; env: Env; waitUntil
               type: 'complete',
               sageId: sage.id,
               response: response.text(),
-              messageId
+              messageId: message.messageId
             }));
           } catch (error: any) {
             console.error(`Error generating response for ${sage.name}:`, error);
@@ -96,12 +113,13 @@ export async function onRequest(context: { request: Request; env: Env; waitUntil
               type: 'complete',
               sageId: sage.id,
               response: `${sage.name} is currently in deep meditation and unable to respond.`,
-              messageId
+              messageId: message.messageId
             }));
           }
-        })));
+        }));
 
       } catch (error: any) {
+        console.error('WebSocket error:', error);
         server.send(JSON.stringify({ 
           type: 'error',
           message: error.message || "Internal server error",
