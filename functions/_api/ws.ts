@@ -29,10 +29,14 @@ declare const WebSocketPair: {
   new(): { [key: number]: CloudflareWebSocket };
 };
 
-export async function onRequest({ request, env }: { request: Request; env: Env }) {
+export interface RequestWithEnv extends Request {
+  env: Env;
+}
+
+export async function onRequest(context: { request: Request; env: Env; waitUntil: ExecutionContext['waitUntil'] }) {
   try {
     // Check if the request is a WebSocket upgrade request
-    if (request.headers.get("Upgrade") !== "websocket") {
+    if (context.request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected WebSocket connection", { status: 426 });
     }
 
@@ -48,7 +52,7 @@ export async function onRequest({ request, env }: { request: Request; env: Env }
       try {
         const { content, selectedSages, messageId } = JSON.parse(event.data as string);
 
-        if (!env.GEMINI_API_KEY) {
+        if (!context.env.GEMINI_API_KEY) {
           server.send(JSON.stringify({ 
             type: 'error',
             message: "GEMINI_API_KEY not configured",
@@ -57,11 +61,11 @@ export async function onRequest({ request, env }: { request: Request; env: Env }
           return;
         }
 
-        const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(context.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-        // Generate responses from each sage
-        await Promise.all(selectedSages.map(async (sage: Sage) => {
+        // Use waitUntil to ensure long-running operations complete
+        context.waitUntil(Promise.all(selectedSages.map(async (sage: Sage) => {
           const prompt = `
             You are ${sage.name}, ${sage.title}.
             ${sage.prompt}
@@ -95,7 +99,7 @@ export async function onRequest({ request, env }: { request: Request; env: Env }
               messageId
             }));
           }
-        }));
+        })));
 
       } catch (error: any) {
         server.send(JSON.stringify({ 
