@@ -54,7 +54,12 @@ export async function onRequest({
       );
     }
 
+<<<<<<< HEAD
     const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+=======
+    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+>>>>>>> a71cc01 (Restored to 'cf752e3b52d2aa75d2ed674c6b79d20e8c962081')
 
     const responses: Record<string, string> = {};
 
@@ -99,25 +104,37 @@ export async function onRequest({
     if (Object.keys(responses).length === 0) {
       return new Response(
         JSON.stringify({ error: "Failed to generate responses from any sage" }),
-        {
+        { 
           status: 500,
           headers: { "Content-Type": "application/json" },
         },
       );
     }
 
+<<<<<<< HEAD
     return new Response(JSON.stringify({ responses, messageId }), {
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
     });
+=======
+    return new Response(
+      JSON.stringify({ responses, messageId }),
+      { 
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        } 
+      }
+    );
+>>>>>>> a71cc01 (Restored to 'cf752e3b52d2aa75d2ed674c6b79d20e8c962081')
   } catch (error: any) {
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
-      {
+      { 
         status: error.message?.includes("SAFETY") ? 400 : 500,
-        headers: {
+        headers: { 
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
         },
