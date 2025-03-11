@@ -1,4 +1,4 @@
-import { GoogleGenAI} from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { Sage } from "@shared/schema";
 import { WebSocket } from "ws";
 
@@ -12,7 +12,7 @@ async function generateSingleSageResponse(
   content: string,
   sage: Sage,
   ws: WebSocket | null,
-  messageId: number
+  messageId: number,
 ): Promise<string> {
   try {
     const prompt = `
@@ -27,31 +27,35 @@ async function generateSingleSageResponse(
     `.trim();
 
     const result = await genAI.models.generateContentStream({
-      model: 'gemini-2.0-flash-001',
+      model: "gemini-2.0-flash-001",
       contents: prompt,
     });
-    let fullResponse = '';
+    let fullResponse = "";
 
     if (ws?.readyState === WebSocket.OPEN) {
       for await (const chunk of result) {
         const text = chunk.text;
         fullResponse += text;
-        ws.send(JSON.stringify({
-          type: 'stream',
-          messageId,
-          sageId: sage.id,
-          chunk: text
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "stream",
+            messageId,
+            sageId: sage.id,
+            chunk: text,
+          }),
+        );
       }
 
       // Send complete message with full response after stream ends
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'complete',
-          messageId,
-          sageId: sage.id,
-          response: fullResponse
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "complete",
+            messageId,
+            sageId: sage.id,
+            response: fullResponse,
+          }),
+        );
       }
     } else {
       for await (const chunk of result) {
@@ -63,7 +67,9 @@ async function generateSingleSageResponse(
   } catch (error: any) {
     console.error(`Error generating response for ${sage.name}:`, error);
     if (error.message?.includes("SAFETY")) {
-      throw new Error("Your question touches on sensitive topics. Please rephrase it focusing on spiritual guidance and wisdom.");
+      throw new Error(
+        "Your question touches on sensitive topics. Please rephrase it focusing on spiritual guidance and wisdom.",
+      );
     }
     throw error;
   }
@@ -73,7 +79,7 @@ export async function generateSageResponses(
   content: string,
   selectedSages: Sage[],
   ws: WebSocket | null = null,
-  messageId: number
+  messageId: number,
 ): Promise<Record<string, string>> {
   if (!selectedSages.length) {
     throw new Error("No sages selected");
@@ -86,19 +92,26 @@ export async function generateSageResponses(
   await Promise.all(
     selectedSages.map(async (sage) => {
       try {
-        const response = await generateSingleSageResponse(content, sage, ws, messageId);
+        const response = await generateSingleSageResponse(
+          content,
+          sage,
+          ws,
+          messageId,
+        );
         responses[sage.id] = response;
       } catch (error) {
         errors.push(error as Error);
       }
-    })
+    }),
   );
 
   if (Object.keys(responses).length === 0) {
     if (errors.length > 0) {
       throw errors[0];
     }
-    throw new Error("The sages are temporarily unavailable. Please try again in a moment.");
+    throw new Error(
+      "The sages are temporarily unavailable. Please try again in a moment.",
+    );
   }
 
   return responses;

@@ -130,26 +130,31 @@ export async function onRequest(context: { request: Request; env: Env }) {
       try {
         const message = JSON.parse(event.data as string) as WebSocketMessage;
         console.log('Received message:', message);
-        
+
         if (message.type !== 'start_chat') {
-          server.send(JSON.stringify({ 
+          server.send(JSON.stringify({
             type: 'error',
             message: "Invalid message type",
-            messageId: message.messageId 
+            messageId: message.messageId
           }));
           return;
         }
 
         if (!context.env.GEMINI_API_KEY) {
-          server.send(JSON.stringify({ 
+          server.send(JSON.stringify({
             type: 'error',
             message: "GEMINI_API_KEY not configured",
-            messageId: message.messageId 
+            messageId: message.messageId
           }));
           return;
         }
 
+<<<<<<< HEAD
         const genAI = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
+=======
+        const genAI = new GoogleGenerativeAI(context.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+>>>>>>> 5eacec2 (Upgrade Gemini model to 2.0 Flash Lite.  Updated API and WebSocket endpoints to use the new model.)
 
         // Generate responses from each sage
         await Promise.all(message.selectedSages.map(async (sageId: string) => {
@@ -184,6 +189,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
             }));
 
             let fullResponse = '';
+  
             const result = await genAI.models.generateContentStream({
               model: 'gemini-2.0-flash-001',
               contents: prompt,
@@ -191,8 +197,9 @@ export async function onRequest(context: { request: Request; env: Env }) {
             
             for await (const chunk of result) {
               const chunkText = chunk.text;
+
               fullResponse += chunkText;
-              
+
               // Send each chunk as it arrives
               server.send(JSON.stringify({
                 type: 'stream',
@@ -212,7 +219,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
           } catch (error: any) {
             console.error(`Error generating response for ${sage.name}:`, error);
             const errorMessage = `${sage.name} is currently in deep meditation and unable to respond.`;
-            
+
             // Send error response
             server.send(JSON.stringify({
               type: 'stream',
@@ -220,7 +227,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
               chunk: errorMessage,
               messageId: message.messageId
             }));
-            
+
             // Send completion message
             server.send(JSON.stringify({
               type: 'complete',
@@ -233,10 +240,10 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
       } catch (error: any) {
         console.error('WebSocket error:', error);
-        server.send(JSON.stringify({ 
+        server.send(JSON.stringify({
           type: 'error',
           message: error.message || "Internal server error",
-          messageId: JSON.parse(event.data as string).messageId 
+          messageId: JSON.parse(event.data as string).messageId
         }));
       }
     });
@@ -263,4 +270,4 @@ export async function onRequest(context: { request: Request; env: Env }) {
       headers: { "Content-Type": "application/json" }
     });
   }
-} 
+}
