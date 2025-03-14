@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI} from "@google/genai";
 import { ExecutionContext } from "@cloudflare/workers-types";
 
 interface Env {
@@ -149,7 +149,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
           return;
         }
 
-        const genAI = new GoogleGenerativeAI(context.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenAI(context.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
         // Generate responses from each sage

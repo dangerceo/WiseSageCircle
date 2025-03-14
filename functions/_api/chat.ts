@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI} from "@google/genai";
 import { ExecutionContext } from "@cloudflare/workers-types";
 
 interface Env {
@@ -50,7 +50,7 @@ export async function onRequest({ request, env }: {
       );
     }
 
-    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    const genAI = new GoogleGenAI(env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
     const responses: Record<string, string> = {};
