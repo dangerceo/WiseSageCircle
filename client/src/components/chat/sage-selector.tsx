@@ -1,7 +1,6 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { sages } from "@/lib/sages";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface SageSelectorProps {
   selected: string[];
@@ -35,27 +34,18 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
         </Button>
       </div>
 
-      <ScrollArea className="w-full">
-        <div className="flex w-max gap-2 pb-2">
-          {sages.map((sage) => (
-            <Button
-              key={sage.id}
-              variant={selected.includes(sage.id) ? "default" : "outline"}
-              className="flex flex-col items-center gap-2 p-2 h-auto w-[70px] sm:w-[90px]"
-              onClick={() => toggleSage(sage.id)}
-            >
-              <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                <AvatarImage src={sage.image} alt={sage.name} />
-                <AvatarFallback>{sage.name[0]}</AvatarFallback>
-              </Avatar>
-              <div className="text-center">
-                <div className="font-medium text-xs sm:text-sm truncate w-full">{sage.name}</div>
-              </div>
-            </Button>
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      <div className="grid grid-cols-2 gap-2 w-full">
+        {sages.map((sage) => (
+          <Button
+            key={sage.id}
+            variant={selected.includes(sage.id) ? "default" : "outline"}
+            className="rounded-full text-sm py-1 px-4 h-auto"
+            onClick={() => toggleSage(sage.id)}
+          >
+            {sage.name}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }
