@@ -150,7 +150,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         }
 
         const genAI = new GoogleGenerativeAI(context.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
         // Generate responses from each sage
         await Promise.all(message.selectedSages.map(async (sageId: string) => {
