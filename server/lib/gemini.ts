@@ -6,7 +6,7 @@ if (!process.env.GEMINI_API_KEY) {
   throw new Error("GEMINI_API_KEY environment variable is not set");
 }
 
-const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 async function generateSingleSageResponse(
   content: string,
@@ -26,13 +26,15 @@ async function generateSingleSageResponse(
       Limit the response to 2-3 paragraphs maximum.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
-    const result = await model.generateContentStream(prompt);
+    const result = await genAI.models.generateContentStream({
+      model: 'gemini-2.0-flash-001',
+      contents: prompt,
+    });
     let fullResponse = '';
 
     if (ws?.readyState === WebSocket.OPEN) {
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         fullResponse += text;
         ws.send(JSON.stringify({
           type: 'stream',
@@ -52,8 +54,8 @@ async function generateSingleSageResponse(
         }));
       }
     } else {
-      for await (const chunk of result.stream) {
-        fullResponse += chunk.text();
+      for await (const chunk of result) {
+        fullResponse += chunk.text;
       }
     }
 

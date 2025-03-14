@@ -50,8 +50,7 @@ export async function onRequest({ request, env }: {
       );
     }
 
-    const genAI = new GoogleGenAI(env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+    const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
     const responses: Record<string, string> = {};
 
@@ -69,12 +68,15 @@ export async function onRequest({ request, env }: {
       `.trim();
 
       try {
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        if (!response.text()) {
+        const result = await genAI.models.generateContent({
+          model: 'gemini-2.0-flash-001',
+          contents: prompt,
+        });
+        const response = result.text;
+        if (!response) {
           throw new Error("Empty response received");
         }
-        responses[sage.id] = response.text();
+        responses[sage.id] = response;
       } catch (error: any) {
         console.error(`Error generating response for ${sage.name}:`, error);
         if (error.message?.includes("SAFETY")) {
