@@ -149,8 +149,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
           return;
         }
 
-        const genAI = new GoogleGenAI(context.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+        const genAI = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
 
         // Generate responses from each sage
         await Promise.all(message.selectedSages.map(async (sageId: string) => {
@@ -185,10 +184,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
             }));
 
             let fullResponse = '';
-            const result = await model.generateContentStream(prompt);
+            const result = await genAI.models.generateContentStream({
+              model: 'gemini-2.0-flash-001',
+              contents: prompt,
+            });
             
-            for await (const chunk of result.stream) {
-              const chunkText = chunk.text();
+            for await (const chunk of result) {
+              const chunkText = chunk.text;
               fullResponse += chunkText;
               
               // Send each chunk as it arrives
