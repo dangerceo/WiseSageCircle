@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/geneai";
+import { GoogleGenerativeAI } from "@google/genai";
 import { ExecutionContext } from "@cloudflare/workers-types";
 
 interface Env {
