@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI} from "@google/genai";
 import { ExecutionContext } from "@cloudflare/workers-types";
 
 interface Env {
@@ -18,11 +18,8 @@ interface ChatRequest {
   messageId: string;
 }
 
-export async function onRequest({
-  request,
-  env,
-}: {
-  request: Request;
+export async function onRequest({ request, env }: { 
+  request: Request; 
   env: Env;
 }) {
   try {
@@ -40,33 +37,26 @@ export async function onRequest({
     if (request.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
         status: 405,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
       });
     }
 
-    const { content, selectedSages, messageId } =
-      (await request.json()) as ChatRequest;
+    const { content, selectedSages, messageId } = await request.json() as ChatRequest;
 
     if (!env.GEMINI_API_KEY) {
       return new Response(
         JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-<<<<<<< HEAD
     const genAI = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-=======
-    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
->>>>>>> a71cc01 (Restored to 'cf752e3b52d2aa75d2ed674c6b79d20e8c962081')
 
     const responses: Record<string, string> = {};
 
     // Generate responses from each sage in parallel
-    await Promise.all(
-      selectedSages.map(async (sage: Sage) => {
-        const prompt = `
+    await Promise.all(selectedSages.map(async (sage: Sage) => {
+      const prompt = `
         You are ${sage.name}, ${sage.title}.
         ${sage.prompt}
 
@@ -77,28 +67,24 @@ export async function onRequest({
         Limit the response to 2-3 paragraphs maximum.
       `.trim();
 
-        try {
-          const result = await genAI.models.generateContent({
-            model: "gemini-2.0-flash-001",
-            contents: prompt,
-          });
-          const response = result.text;
-          if (!response) {
-            throw new Error("Empty response received");
-          }
-          responses[sage.id] = response;
-        } catch (error: any) {
-          console.error(`Error generating response for ${sage.name}:`, error);
-          if (error.message?.includes("SAFETY")) {
-            throw new Error(
-              "Your question touches on sensitive topics. Please rephrase it focusing on spiritual guidance and wisdom.",
-            );
-          }
-          responses[sage.id] =
-            `${sage.name} is currently in deep meditation and unable to respond.`;
+      try {
+        const result = await genAI.models.generateContent({
+          model: 'gemini-2.0-flash-001',
+          contents: prompt,
+        });
+        const response = result.text;
+        if (!response) {
+          throw new Error("Empty response received");
         }
-      }),
-    );
+        responses[sage.id] = response;
+      } catch (error: any) {
+        console.error(`Error generating response for ${sage.name}:`, error);
+        if (error.message?.includes("SAFETY")) {
+          throw new Error("Your question touches on sensitive topics. Please rephrase it focusing on spiritual guidance and wisdom.");
+        }
+        responses[sage.id] = `${sage.name} is currently in deep meditation and unable to respond.`;
+      }
+    }));
 
     // If no responses were generated successfully, handle the error
     if (Object.keys(responses).length === 0) {
@@ -106,19 +92,11 @@ export async function onRequest({
         JSON.stringify({ error: "Failed to generate responses from any sage" }),
         { 
           status: 500,
-          headers: { "Content-Type": "application/json" },
-        },
+          headers: { "Content-Type": "application/json" }
+        }
       );
     }
 
-<<<<<<< HEAD
-    return new Response(JSON.stringify({ responses, messageId }), {
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
-=======
     return new Response(
       JSON.stringify({ responses, messageId }),
       { 
@@ -128,7 +106,6 @@ export async function onRequest({
         } 
       }
     );
->>>>>>> a71cc01 (Restored to 'cf752e3b52d2aa75d2ed674c6b79d20e8c962081')
   } catch (error: any) {
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
@@ -136,9 +113,9 @@ export async function onRequest({
         status: error.message?.includes("SAFETY") ? 400 : 500,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      },
+          "Access-Control-Allow-Origin": "*"
+        }
+      }
     );
   }
 }

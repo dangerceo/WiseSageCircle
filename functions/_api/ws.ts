@@ -150,7 +150,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
         }
 
         const genAI = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
         // Generate responses from each sage
         await Promise.all(message.selectedSages.map(async (sageId: string) => {
@@ -192,7 +191,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
             
             for await (const chunk of result) {
               const chunkText = chunk.text;
-
               fullResponse += chunkText;
               
               // Send each chunk as it arrives
