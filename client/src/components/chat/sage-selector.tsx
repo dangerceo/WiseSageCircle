@@ -34,7 +34,7 @@ export default function SageSelector({ selected, onChange }: SageSelectorProps) 
         </Button>
       </div>
 
-      <div className="grid grid-rows-2 gap-2 w-full">
+      <div className="flex flex-wrap gap-2 w-full">
         {sages.map((sage) => (
           <Button
             key={sage.id}
