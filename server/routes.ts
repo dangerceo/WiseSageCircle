@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertUserSchema, sages } from "@shared/schema";
 import { z } from "zod";
 import { generateSageResponses } from "./lib/gemini";
+import { stripe, CREDIT_PRODUCTS } from "./lib/stripe";
 
 // Track active WebSocket connections by session ID
 const activeConnections: Map<string, WebSocket> = new Map();
@@ -15,9 +16,95 @@ export function registerRoutes(app: Express): Server {
   // Set up WebSocket server with explicit path
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/ws',
+    path: '/_api/ws',
     // Allow connections from any origin
     verifyClient: () => true
+  });
+
+  console.log('WebSocket server initialized at /_api/ws');
+
+  // Credit purchase endpoint
+  app.post("/_api/purchase-credits", async (req, res) => {
+    try {
+      const { productId, sessionId } = req.body;
+
+      if (!productId || !sessionId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Type-safe check for product
+      if (!(productId in CREDIT_PRODUCTS)) {
+        return res.status(400).json({ error: "Invalid product" });
+      }
+
+      const product = CREDIT_PRODUCTS[productId as keyof typeof CREDIT_PRODUCTS];
+      console.log(`Processing credit purchase: ${productId} for session ${sessionId}`);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: product.price,
+        currency: "usd",
+        metadata: {
+          productId,
+          credits: product.credits.toString(),
+          sessionId
+        }
+      });
+
+      console.log(`Created payment intent: ${paymentIntent.id}`);
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Webhook endpoint to handle successful payments
+  app.post("/_api/stripe-webhook", async (req, res) => {
+    let sig = req.headers['stripe-signature'];
+
+    // Ensure sig is a string
+    if (Array.isArray(sig)) {
+      sig = sig[0];
+    }
+
+    if (!sig) {
+      return res.status(400).json({ error: 'Missing stripe-signature header' });
+    }
+
+    try {
+      const event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET ?? ''
+      );
+
+      if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object as {
+          metadata: {
+            productId: string;
+            credits: string;
+            sessionId: string;
+          };
+        };
+
+        const { sessionId, credits } = paymentIntent.metadata;
+        console.log(`Processing successful payment for session ${sessionId}, adding ${credits} credits`);
+
+        const user = await storage.getUser(sessionId);
+        if (user) {
+          await storage.updateUserCredits(
+            user.id,
+            user.credits + parseInt(credits, 10)
+          );
+          console.log(`Updated credits for user ${user.id}: ${user.credits} -> ${user.credits + parseInt(credits, 10)}`);
+        }
+      }
+
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      res.status(400).json({ error: error.message });
+    }
   });
 
   // Regular HTTP routes
@@ -92,7 +179,7 @@ export function registerRoutes(app: Express): Server {
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
-        console.log('Received WebSocket message:', message); // Debug log
+        console.log('Received WebSocket message:', message);
 
         if (message.type === 'start_chat') {
           const { sessionId, messageId, content, selectedSages } = message;
@@ -110,7 +197,7 @@ export function registerRoutes(app: Express): Server {
 
           // Filter sages based on selected IDs
           const filteredSages = sages.filter(sage => selectedSages.includes(sage.id));
-          console.log('Starting chat with sages:', filteredSages.map(s => s.name)); // Debug log
+          console.log('Starting chat with sages:', filteredSages.map(s => s.name));
 
           try {
             await generateSageResponses(content, filteredSages, ws, messageId);
