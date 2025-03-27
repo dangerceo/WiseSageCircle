@@ -58,7 +58,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Webhook endpoint to handle successful payments
+  // Handle both direct webhook from Stripe and forwarded webhook from Cloudflare Functions
   app.post("/_api/stripe-webhook", async (req, res) => {
     let sig = req.headers['stripe-signature'];
 
@@ -79,7 +79,8 @@ export function registerRoutes(app: Express): Server {
       );
 
       if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object as {
+        // Cast to unknown first to avoid TypeScript errors
+        const paymentIntent = event.data.object as unknown as {
           metadata: {
             productId: string;
             credits: string;
@@ -97,6 +98,15 @@ export function registerRoutes(app: Express): Server {
             user.credits + parseInt(credits, 10)
           );
           console.log(`Updated credits for user ${user.id}: ${user.credits} -> ${user.credits + parseInt(credits, 10)}`);
+          
+          // If the user has an active WebSocket connection, notify them
+          const ws = activeConnections.get(sessionId);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'credits_updated',
+              credits: user.credits + parseInt(credits, 10)
+            }));
+          }
         }
       }
 
@@ -104,6 +114,44 @@ export function registerRoutes(app: Express): Server {
     } catch (error: any) {
       console.error('Webhook error:', error);
       res.status(400).json({ error: error.message });
+    }
+  });
+  
+  // Process payment webhook forwarded from Cloudflare Functions
+  app.post("/_api/process-payment-webhook", async (req, res) => {
+    try {
+      const { sessionId, credits, productId } = req.body;
+      
+      if (!sessionId || !credits) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      console.log(`Processing forwarded payment for session ${sessionId}, adding ${credits} credits`);
+      
+      const user = await storage.getUser(sessionId);
+      if (user) {
+        await storage.updateUserCredits(
+          user.id,
+          user.credits + credits
+        );
+        console.log(`Updated credits for user ${user.id}: ${user.credits} -> ${user.credits + credits}`);
+        
+        // If the user has an active WebSocket connection, notify them
+        const ws = activeConnections.get(sessionId);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'credits_updated',
+            credits: user.credits + credits
+          }));
+        }
+      } else {
+        console.error(`User with session ${sessionId} not found`);
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Payment processing error:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 

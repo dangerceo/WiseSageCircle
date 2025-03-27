@@ -167,6 +167,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 socket.close();
                 resolve();
               }
+            } else if (data.type === 'credits_updated') {
+              // Handle credit updates from successful payments
+              if (typeof data.credits === 'number') {
+                setCredits(data.credits);
+                toast({
+                  title: "Credits Updated",
+                  description: `Your account has been updated with ${data.credits} credits.`,
+                });
+              }
             }
           };
 

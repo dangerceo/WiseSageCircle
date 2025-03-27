@@ -33,7 +33,10 @@ export default function ChatPage() {
       <header className="border-b p-4">
         <div className="container max-w-[1600px] mx-auto flex items-center justify-between gap-4">
           <Logo />
-          <CreditCounter credits={user?.credits ?? 0} />
+          <CreditCounter 
+            credits={user?.credits ?? 0} 
+            onClick={() => setShowPurchaseModal(true)}
+          />
         </div>
       </header>
 
